@@ -1,2 +1,3 @@
 .venv
-pn.txt
+PERSONAL_NOTES.txt
+*.pyc
