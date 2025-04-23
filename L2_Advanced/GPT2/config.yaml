@@ -1,0 +1,14 @@
+vocab_size: 50257   # tiktoken.get_encoding("gpt2").n_vocab
+embedding_dim: 10
+
+# DATASET
+stride: 3
+
+# DATALOADER
+batch_size: 2
+shuffle: False
+drop_last: True
+num_workers: 0
+
+# POSITIONAL ENCODING
+context_window: 4 # This will dictate how many tokens your model can process at once.

@@ -1,13 +1,9 @@
-import sys 
-sys.path.append("..")
-
-
 import tiktoken
-from data.dataset import Data
-from data.dataloader import get_data_loader
+from dataset import Data
+from dataloader import get_data_loader
 
 
-with open("/Users/hawardzaee/Desktop/Galaxy/MyLabV2/Foundation-LLM-from-scratch/L2_Advanced/GPT2/data/the-verdict.txt","r") as f:
+with open("the-verdict.txt","r") as f:
     raw_text = f.read()
 
 tokenizer = tiktoken.get_encoding("gpt2")
