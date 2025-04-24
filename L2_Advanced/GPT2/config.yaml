@@ -1,5 +1,8 @@
+dropout: 0.0
+
+# TOKENIZER
 vocab_size: 50257   # tiktoken.get_encoding("gpt2").n_vocab
-embedding_dim: 10
+embedding_dim: 4
 
 # DATASET
 stride: 3
@@ -12,3 +15,9 @@ num_workers: 0
 
 # POSITIONAL ENCODING
 context_window: 4 # This will dictate how many tokens your model can process at once.
+
+# Mulit-head attention
+num_heads: 2
+Q_K_V_bias: False
+kv_bias: False
+batch_first: True
