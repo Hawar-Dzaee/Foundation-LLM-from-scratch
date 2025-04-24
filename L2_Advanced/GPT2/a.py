@@ -22,8 +22,3 @@ data_dl = get_data_loader(
     shuffle=False,
     drop_last=True,
     num_workers=0)  
-
-for x,y in data_dl:
-    print(x)
-    print(y)
-    break
