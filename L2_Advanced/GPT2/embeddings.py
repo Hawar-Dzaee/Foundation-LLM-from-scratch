@@ -2,12 +2,10 @@ import torch
 from torch import nn 
 
 class Embeddings(nn.Module):
-    def __init__(self,vocab_size,embedding_dim,context_window):
+    def __init__(self,config):
         super().__init__()
-        self.vocab_size = vocab_size
-        self.embedding_dim = embedding_dim
-        self.token_embedding = nn.Embedding(vocab_size,embedding_dim)
-        self.positional_encoding = nn.Embedding(context_window,embedding_dim)
+        self.token_embedding = nn.Embedding(config['vocab_size'],config['embedding_dim'])
+        self.positional_encoding = nn.Embedding(config['context_window'],config['embedding_dim'])
 
     def forward(self,x):
         B,num_token = x.shape
