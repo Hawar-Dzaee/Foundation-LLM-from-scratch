@@ -22,3 +22,6 @@ Q_K_V_bias: False
 kv_bias: False
 batch_first: True
 device: null
+
+# Transformer block
+n_layers: 2
