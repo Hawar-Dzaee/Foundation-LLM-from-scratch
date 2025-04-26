@@ -1,3 +1,4 @@
+from typing import Dict, Any
 import torch 
 from torch import nn 
 from embeddings import Embeddings
@@ -6,7 +7,7 @@ from transformer_block import TransformerBlock
 
 
 class GPT2Model(nn.Module):
-    def __init__(self,config):
+    def __init__(self, config: Dict[str, Any]) -> None:
         super().__init__()
         self.embeddings = Embeddings(config)
         self.dropout = nn.Dropout(config['dropout'])
@@ -14,7 +15,7 @@ class GPT2Model(nn.Module):
         self.ln = nn.LayerNorm(config['embedding_dim'])
         self.head = nn.Linear(config['embedding_dim'],config['vocab_size'])
 
-    def forward(self,x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.embeddings(x)
         x = self.dropout(x)
         x = self.transformer_blocks(x)

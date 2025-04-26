@@ -14,7 +14,9 @@ drop_last: True
 num_workers: 0
 
 # POSITIONAL ENCODING
-context_window: 4 # This will dictate how many tokens your model can process at once.
+# Durning training, num_tokens == context_window
+# Durning inference, num_tokens <= context_window
+context_window: 100
 
 # Mulit-head attention
 num_heads: 2
