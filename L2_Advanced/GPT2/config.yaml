@@ -2,10 +2,10 @@ dropout: 0.0
 
 # TOKENIZER
 vocab_size: 50257   # tiktoken.get_encoding("gpt2").n_vocab
-embedding_dim: 4
+embedding_dim: 768
 
 # DATASET
-stride: 3
+stride: 256
 
 # DATALOADER
 batch_size: 2
@@ -16,14 +16,14 @@ num_workers: 0
 # POSITIONAL ENCODING
 # Durning training, num_tokens == context_window
 # Durning inference, num_tokens <= context_window
-context_window: 100
+context_window: 256
 
 # Mulit-head attention
-num_heads: 2
+num_heads: 12
 Q_K_V_bias: False
 kv_bias: False
 batch_first: True
 device: null
 
 # Transformer block
-n_layers: 2
+n_layers: 12
