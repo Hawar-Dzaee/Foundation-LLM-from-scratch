@@ -27,13 +27,13 @@ def tokens_to_text(
 
 
 def generate_text(
-        raw_text,
+        text_to_generate,
         model,
         device,
-        look_back=3,
+        look_back=256,
         num_tokens_to_generate=20,
 ):
-    starting_tokens = text_to_tokens(raw_text).to(device)
+    starting_tokens = text_to_tokens(text_to_generate).to(device)
 
     model.eval()
     with torch.no_grad():
@@ -44,5 +44,7 @@ def generate_text(
             token_predicted = torch.argmax(next_token_prob_distribution,dim=-1,keepdim=True) 
             tokens = torch.concat([starting_tokens,token_predicted],dim=1) 
             starting_tokens = tokens
+            text = tokens_to_text(tokens)
+            text = text.replace("\n", " ")
             
-    return tokens_to_text(tokens)
+    return text
