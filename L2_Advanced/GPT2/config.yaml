@@ -27,3 +27,16 @@ device: null
 
 # Transformer block
 n_layers: 12
+
+# generate
+num_tokens_to_generate: 20
+look_back: 256
+text_to_generate: "Every single step"
+
+
+# optimizer
+learning_rate: 0.0004
+
+# training
+num_epochs: 10
+
