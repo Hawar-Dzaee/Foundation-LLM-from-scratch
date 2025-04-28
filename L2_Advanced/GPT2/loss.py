@@ -1,4 +1,5 @@
-import torch.nn.functional as F
+from torch import nn 
 
-def loss_fn(logits, targets):
-    return F.cross_entropy(logits.flatten(0, 1), targets.flatten())
+def  cross_entropy(logits, targets):
+    loss_fn = nn.CrossEntropyLoss()
+    return loss_fn(logits.flatten(0, 1), targets.flatten())

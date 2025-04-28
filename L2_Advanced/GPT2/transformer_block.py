@@ -4,9 +4,9 @@ from torch import nn
 class TransformerBlock(nn.Module):
     def __init__(self,config):
         super().__init__()
-        self.ln1 = nn.LayerNorm(config['embedding_dim'])
+        self.ln1 = nn.LayerNorm(config['embed_dim'])
         self.mha = nn.MultiheadAttention(
-            embed_dim= config['embedding_dim'],
+            embed_dim= config['embed_dim'],
             num_heads= config['num_heads'],
             batch_first= config['batch_first'],
             bias= config['Q_K_V_bias'],
@@ -16,11 +16,11 @@ class TransformerBlock(nn.Module):
             )
         self.dp1 = nn.Dropout(config['dropout'])
 
-        self.ln2 = nn.LayerNorm(config['embedding_dim'])
+        self.ln2 = nn.LayerNorm(config['embed_dim'])
         self.mlp = nn.Sequential(
-            nn.Linear(config['embedding_dim'],2*config['embedding_dim']),
+            nn.Linear(config['embed_dim'],2*config['embed_dim']),
             nn.GELU(),
-            nn.Linear(2*config['embedding_dim'],config['embedding_dim']),
+            nn.Linear(2*config['embed_dim'],config['embed_dim']),
         )
         self.dp2 = nn.Dropout(config['dropout'])
 
