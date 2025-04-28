@@ -1,5 +1,4 @@
 import logging
-import torch
 
 
 logging.basicConfig(
@@ -7,7 +6,6 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s',
 )
 logger = logging.getLogger(__name__)
-
 
 
 
@@ -19,7 +17,8 @@ def traininng_loop(
     num_epochs,
     device,
 ):
-    
+    seen_tokens = 0
+
     model.train()
     model.to(device)
 
@@ -38,8 +37,9 @@ def traininng_loop(
             optimizer.step()
             
             train_loss.append(loss.item())
-
+            seen_tokens += inputs.numel()
         train_loss = sum(train_loss)/len(train_loss)
             
-        logging.info(f"Loss: {train_loss}")
-            
+        logging.info(f"Seen tokens: {seen_tokens}")
+        logging.info(f"Loss: {train_loss:.4f}")
+        logging.info("="*50)
