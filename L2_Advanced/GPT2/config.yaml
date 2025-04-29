@@ -1,4 +1,4 @@
-dropout: 0.0
+dropout: 0.1
 
 # TOKENIZER
 vocab_size: 50257   # tiktoken.get_encoding("gpt2").n_vocab
