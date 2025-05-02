@@ -1,5 +1,6 @@
-.venv
-PERSONAL_NOTES.txt
 *.pyc
-gpt2
-gpt_download.py
+L2_Advanced/__pycache__/
+.venv/
+venv/
+PERSONAL_NOTES.txt
+raw_data/
