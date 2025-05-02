@@ -28,6 +28,9 @@ device: null
 # Transformer block
 n_layers: 12
 
+# num_classes 
+num_classes: 50257 # for next token prediction must equal vocab_size, for classification must be the number of classes you have.
+
 # generate
 num_tokens_to_generate: 20
 look_back: 256

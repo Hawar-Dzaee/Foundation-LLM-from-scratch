@@ -13,7 +13,7 @@ class GPT2Model(nn.Module):
         self.dropout = nn.Dropout(config['dropout'])
         self.transformer_blocks = nn.Sequential(*[TransformerBlock(config) for _ in range(config['n_layers'])])
         self.ln = nn.LayerNorm(config['embed_dim'])
-        self.head = nn.Linear(config['embed_dim'],config['vocab_size'],bias=False)
+        self.head = nn.Linear(config['embed_dim'],config['num_classes'],bias=False)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.embeddings(x)
