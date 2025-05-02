@@ -1,6 +1,8 @@
 *.pyc
-L2_Advanced/__pycache__/
+__pycache__/
 .venv/
 venv/
 PERSONAL_NOTES.txt
 raw_data/
+processing_data/
+classification.ipynb
