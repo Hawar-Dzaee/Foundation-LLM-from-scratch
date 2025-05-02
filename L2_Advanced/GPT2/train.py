@@ -40,7 +40,6 @@ def traininng_loop(
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-            
             train_loss.append(loss.item())
             seen_tokens += inputs.numel()
         train_loss = sum(train_loss)/len(train_loss)
