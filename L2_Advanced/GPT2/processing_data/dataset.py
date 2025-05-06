@@ -1,3 +1,5 @@
+from typing import List,Dict,Any
+
 import torch
 from torch.utils.data import Dataset
 import pandas as pd
@@ -23,7 +25,7 @@ class Data(Dataset):
             
 
 
-class SpamDataset(Dataset):
+class ClassificationDataset(Dataset):
     def __init__(self,csv_path,tokenizer,max_len=None,pad_token_id=50256):
         self.df = pd.read_csv(csv_path)
 
@@ -64,3 +66,34 @@ class SpamDataset(Dataset):
                 max_len = len(encoded_text)
         return max_len
         
+
+
+class InstructionDataset(Dataset):
+    def __init__(self,data:List[Dict[str,Any]],tokenizer:Any):
+        self.data = data 
+
+        self.encoded_texts = []
+
+        for entry in self.data:
+            instruction_plus_input = format_input(entry)
+            response_text = f"\n\n### Responsive:\n{entry['output']}"
+            full_text = instruction_plus_input + response_text
+            self.encoded_texts.append(tokenizer.encode(full_text))
+
+    def __len__(self):
+        return len(self.data)
+    
+    def __getitem__(self,idx):
+        return self.encoded_texts[idx]
+    
+
+def format_input(entry):
+    instruction_text = (
+        f"Below is an instruction that describes a task. "
+        f"Write a response that appropriately completes the request."
+        f"\n\n### Instruction:\n{entry['instruction']}"
+    )
+
+    input_text = f"\n\n### Input:\n{entry['input']}" if entry["input"] else ""
+
+    return instruction_text + input_text
