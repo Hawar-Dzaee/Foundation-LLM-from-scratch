@@ -13,6 +13,23 @@ logger = logging.getLogger(__name__)
 
 
 
+class Trainer:
+    def __init__(self,model,train_loader,val_loader,loss_fn,optimizer,num_epochs,
+                 device,text_to_generate=None,look_back=256,num_tokens_to_generate=20):
+        self.model = model
+        self.train_loader = train_loader
+        self.val_loader = val_loader
+        self.loss_fn = loss_fn
+        self.optimizer = optimizer
+        self.num_epochs = num_epochs
+
+    def _run_batch(self,batch):
+        inputs,targets = batch
+        inputs,targets = inputs.to(self.device),targets.to(self.device)
+        logits = self.model(inputs)
+        loss = self.loss_fn(logits,targets)
+        return loss
+
 def traininng_loop(
     model,
     train_loader,
