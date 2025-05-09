@@ -1,6 +1,9 @@
 import logging
+import wandb
+
 from evaluation import eval
 from utils import generate_text
+
 
 logging.basicConfig(
     level=logging.INFO,
@@ -46,6 +49,13 @@ def traininng_loop(
             
         logging.info(f"Seen tokens: {seen_tokens}")
         logging.info(f"Loss: {train_loss:.4f}")
+
+        wandb.log({
+            "loss": train_loss,
+            "seen_tokens": seen_tokens
+        })
+
+
 
         eval(model, val_loader, loss_fn, device)
 

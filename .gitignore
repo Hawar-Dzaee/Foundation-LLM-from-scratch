@@ -4,6 +4,7 @@ __pycache__/
 venv/
 PERSONAL_NOTES.txt
 raw_data/
-processing_data/
-classification.ipynb
+preprocessing_classification_dataset.ipynb
 punching_bag
+.env
+wandb/
