@@ -1,10 +1,9 @@
 import logging
 import wandb
 import torch
-
-from evaluation import eval
+import numpy as np
 from utils import text_to_tokens,tokens_to_text
-
+from metrics import accuracy
 
 logging.basicConfig(
     level=logging.INFO,
@@ -21,6 +20,7 @@ class Trainer:
         train_loader,
         val_loader,
         loss_fn,
+        accuracy_fn,
         optimizer,
         config,
         device,
@@ -31,12 +31,13 @@ class Trainer:
         self.train_loader = train_loader
         self.val_loader = val_loader
         self.loss_fn = loss_fn
+        self.accuracy_fn = accuracy_fn
         self.optimizer = optimizer
         self.config = config
         self.device = device
         self.generate_text_config = generate_text_config
-        self.train_loss = []
-        self.val_loss = []
+        self.train_losses,self.val_losses = [],[]
+        self.train_accs,self.val_accs = [],[]
         self.seen_tokens = 0
 
 
@@ -46,41 +47,52 @@ class Trainer:
         inputs, targets = inputs.to(self.device), targets.to(self.device)
         logits = self.model(inputs)
         loss = self.loss_fn(logits, targets)
+        acc = self.accuracy_fn(logits,targets) #accuracy of the batch
 
         if training:
             self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
             self.seen_tokens += inputs.numel()
-        return loss.item()
+        return loss.item(),acc.item()
 
     
     def _run_epoch(self):
         train_loss,val_loss = 0,0
+        train_acc,val_acc = 0,0
 
         self.model.train()
         for batch in self.train_loader:
-            loss = self._run_batch(batch,training=True)
+            loss,acc = self._run_batch(batch,training=True)
             train_loss += loss
+            train_acc += acc
 
-        train_loss = train_loss / len(self.train_loader)
-        self.train_loss.append(train_loss)
+        train_loss = train_loss/len(self.train_loader)
+        train_acc = train_acc/len(self.train_loader)
+        self.train_losses.append(train_loss)
+        self.train_accs.append(train_acc)
 
         self.model.eval()
         with torch.no_grad():
             for batch in self.val_loader:
-                loss = self._run_batch(batch,training=False)
+                loss,acc = self._run_batch(batch,training=False)
                 val_loss += loss
+                val_acc += acc
 
-        val_loss = val_loss / len(self.val_loader)
-        self.val_loss.append(val_loss)
-        return train_loss,val_loss
+        val_loss = val_loss/len(self.val_loader)
+        val_acc = val_acc/len(self.val_loader)
+        self.val_losses.append(val_loss)
+        self.val_accs.append(val_acc)
+        
+        return train_loss,val_loss,train_acc,val_acc
     
-    def _log_metrics(self,epoch,train_loss,val_loss):
+    def _log_metrics(self,train_loss,val_loss,train_acc,val_acc,seen_tokens):
         wandb.log({
-            "train loss": train_loss,
-            "val loss": val_loss,
-            "seen tokens": self.seen_tokens
+            "train loss": round(train_loss,4),
+            "val loss": round(val_loss,4),
+            "train acc": round(train_acc,4),
+            "val acc": round(val_acc,4),
+            "seen tokens": seen_tokens
         })
 
     def _generate_text(self):
@@ -117,11 +129,13 @@ class Trainer:
     def train(self, epochs,generate_text=False):
         for epoch in range(epochs):
             logging.info(f"Epoch {epoch+1}/{epochs}")
-            train_loss,val_loss = self._run_epoch()
-            self._log_metrics(epoch,train_loss,val_loss)
+            train_loss,val_loss,train_acc,val_acc = self._run_epoch()
+            self._log_metrics(train_loss,val_loss,train_acc,val_acc,self.seen_tokens)
+            logging.info(f"Train loss: {train_loss:.4f}, Val loss: {val_loss:.4f}, Train acc: {train_acc:.4f}, Val acc: {val_acc:.4f}")
+
             if generate_text:
                 generated_text = self._generate_text()
                 logging.info(f"Generated text: {generated_text}")
 
-        return self.train_loss,self.val_loss
+        return self.train_losses,self.val_losses,self.train_accs,self.val_accs
 
