@@ -1,9 +1,7 @@
 import logging
 import wandb
 import torch
-import numpy as np
 from utils import text_to_tokens,tokens_to_text
-from metrics import accuracy
 
 logging.basicConfig(
     level=logging.INFO,
@@ -131,7 +129,7 @@ class Trainer:
             logging.info(f"Epoch {epoch+1}/{epochs}")
             train_loss,val_loss,train_acc,val_acc = self._run_epoch()
             self._log_metrics(train_loss,val_loss,train_acc,val_acc,self.seen_tokens)
-            logging.info(f"Train loss: {train_loss:.4f}, Val loss: {val_loss:.4f}, Train acc: {train_acc:.4f}, Val acc: {val_acc:.4f}")
+            logging.info(f"Train loss: {train_loss:.4f} | Train acc: {train_acc:.4f} | Val loss: {val_loss:.4f}  | Val acc: {val_acc:.4f}")
 
             if generate_text:
                 generated_text = self._generate_text()
