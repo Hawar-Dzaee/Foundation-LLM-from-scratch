@@ -1,7 +1,7 @@
 import logging
 import wandb
 import torch
-from utils import text_to_tokens,tokens_to_text
+from utils import generate_text
 
 logging.basicConfig(
     level=logging.INFO,
@@ -41,8 +41,6 @@ class Trainer:
             "val_loss": [],
             "val_acc": [],
         }
-
-
 
 
     def _run_batch_train(self, batch):
@@ -101,36 +99,6 @@ class Trainer:
             "seen tokens": seen_tokens # diff 2 
         })
 
-    def _generate_text(self):
-        starting_tokens = text_to_tokens(self.generate_text_config["text_to_generate"]).to(self.device)
-
-        self.model.eval()
-        with torch.no_grad():
-            for _ in range(self.generate_text_config["num_tokens_to_generate"]):
-                starting_tokens = starting_tokens[:, -self.generate_text_config["look_back"]:]
-                logits = self.model(starting_tokens)[:,-1,:] #logits of the last token
-
-                if self.generate_text_config["top_k"] : 
-                    top_values, _ = torch.topk(logits,self.generate_text_config["top_k"])
-                    logits = torch.where(
-                        logits<top_values[:,-1],
-                        -torch.inf,
-                        logits
-                        )
-                    logits = logits/(self.generate_text_config["temperature"]+1e-7)
-                    probs  = torch.softmax(logits,dim=-1) 
-                    token_predicted = torch.multinomial(probs,num_samples=1)
-                else : 
-                    token_predicted = torch.argmax(logits,dim=-1,keepdim=True) 
-
-                tokens = torch.concat([starting_tokens,token_predicted],dim=1) 
-                text = tokens_to_text(tokens)
-                text = text.replace("\n", " ")
-                starting_tokens = tokens
-
-                
-        return text
-
 
     def train(self):
         for epoch in range(self.config["epochs"]):
@@ -144,7 +112,10 @@ class Trainer:
             logging.info(f"Epoch {epoch+1}/{self.config['epochs']} | Train loss: {train_loss:.4f} | Train acc: {train_acc:.4f} | Val loss: {val_loss:.4f}  | Val acc: {val_acc:.4f}")
 
             if self.generate_text_config["text_to_generate"] :
-                generated_text = self._generate_text()
+                generated_text = generate_text(
+                    model = self.model,
+                    config = self.generate_text_config
+                    )
                 logging.info(f"Generated text: {generated_text}")
 
         return self.history
