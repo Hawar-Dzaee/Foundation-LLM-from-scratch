@@ -15,8 +15,8 @@ class Trainer:
     def __init__(
         self,
         model,
-        train_loader,
-        val_loader,
+        train_dl,
+        val_dl,
         loss_fn,
         accuracy_fn,
         optimizer,
@@ -26,61 +26,75 @@ class Trainer:
     ):
 
         self.model = model
-        self.train_loader = train_loader
-        self.val_loader = val_loader
+        self.train_dl = train_dl
+        self.val_dl = val_dl
         self.loss_fn = loss_fn
         self.accuracy_fn = accuracy_fn
         self.optimizer = optimizer
         self.config = config
         self.device = device
         self.generate_text_config = generate_text_config
-        self.train_losses,self.val_losses = [],[]
-        self.train_accs,self.val_accs = [],[]
         self.seen_tokens = 0
+        self.history = {
+            "train_loss": [],
+            "train_acc": [],
+            "val_loss": [],
+            "val_acc": [],
+        }
 
 
 
-    def _run_batch(self, batch,training):
+
+    def _run_batch_train(self, batch):
+        self.model.train()
         inputs, targets = batch
         inputs, targets = inputs.to(self.device), targets.to(self.device)
         logits = self.model(inputs)
         loss = self.loss_fn(logits, targets)
         acc = self.accuracy_fn(logits,targets) #accuracy of the batch
-
-        if training:
-            self.optimizer.zero_grad()
-            loss.backward()
-            self.optimizer.step()
-            self.seen_tokens += inputs.numel()
+        self.seen_tokens += inputs.numel()
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
         return loss.item(),acc.item()
+    
+    def _run_batch_val(self, batch):
+        self.model.eval()
+        with torch.no_grad():
+            inputs, targets = batch
+            inputs, targets = inputs.to(self.device), targets.to(self.device)
+            logits = self.model(inputs)
+            loss = self.loss_fn(logits, targets)
+            acc = self.accuracy_fn(logits,targets) #accuracy of the batch
+            return loss.item(),acc.item()
 
     
     def _run_epoch(self):
         train_loss,val_loss = 0,0
         train_acc,val_acc = 0,0
 
-        self.model.train()
-        for batch in self.train_loader:
-            loss,acc = self._run_batch(batch,training=True)
+        
+        for batch in self.train_dl:
+            loss,acc = self._run_batch_train(batch)
             train_loss += loss
             train_acc += acc
 
-        train_loss = train_loss/len(self.train_loader)
-        train_acc = train_acc/len(self.train_loader)
-        self.train_losses.append(train_loss)
-        self.train_accs.append(train_acc)
 
-        self.model.eval()
-        with torch.no_grad():
-            for batch in self.val_loader:
-                loss,acc = self._run_batch(batch,training=False)
-                val_loss += loss
-                val_acc += acc
+        train_loss /= len(self.train_dl)
+        train_acc /= len(self.train_dl)
+        self.history["train_loss"].append(train_loss)
+        self.history["train_acc"].append(train_acc)
 
-        val_loss = val_loss/len(self.val_loader)
-        val_acc = val_acc/len(self.val_loader)
-        self.val_losses.append(val_loss)
-        self.val_accs.append(val_acc)
+
+        for batch in self.val_dl:
+            loss,acc = self._run_batch_val(batch)
+            val_loss += loss
+            val_acc += acc
+
+        val_loss /= len(self.val_dl)
+        val_acc /= len(self.val_dl)
+        self.history["val_loss"].append(val_loss)
+        self.history["val_acc"].append(val_acc)
         
         return train_loss,val_loss,train_acc,val_acc
     
@@ -124,16 +138,16 @@ class Trainer:
         return text
 
 
-    def train(self, epochs,generate_text=False):
-        for epoch in range(epochs):
-            logging.info(f"Epoch {epoch+1}/{epochs}")
+    def train(self):
+        for epoch in range(self.config["epochs"]):
+            logging.info(f"Epoch {epoch+1}/{self.config['epochs']}")
             train_loss,val_loss,train_acc,val_acc = self._run_epoch()
             self._log_metrics(train_loss,val_loss,train_acc,val_acc,self.seen_tokens)
             logging.info(f"Train loss: {train_loss:.4f} | Train acc: {train_acc:.4f} | Val loss: {val_loss:.4f}  | Val acc: {val_acc:.4f}")
 
-            if generate_text:
+            if self.generate_text_config["text_to_generate"] :
                 generated_text = self._generate_text()
                 logging.info(f"Generated text: {generated_text}")
 
-        return self.train_losses,self.val_losses,self.train_accs,self.val_accs
+        return self.history
 
