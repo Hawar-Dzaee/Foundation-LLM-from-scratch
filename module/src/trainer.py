@@ -52,7 +52,7 @@ class Trainer:
         logits = self.model(inputs)
         loss = self.loss_fn(logits, targets)
         acc = self.accuracy_fn(logits,targets) #accuracy of the batch
-        self.seen_tokens += inputs.numel()
+        self.seen_tokens += inputs.numel() # diff 1 
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
@@ -72,19 +72,14 @@ class Trainer:
     def _run_epoch(self):
         train_loss,val_loss = 0,0
         train_acc,val_acc = 0,0
-
         
         for batch in self.train_dl:
             loss,acc = self._run_batch_train(batch)
             train_loss += loss
             train_acc += acc
 
-
         train_loss /= len(self.train_dl)
         train_acc /= len(self.train_dl)
-        self.history["train_loss"].append(train_loss)
-        self.history["train_acc"].append(train_acc)
-
 
         for batch in self.val_dl:
             loss,acc = self._run_batch_val(batch)
@@ -93,10 +88,9 @@ class Trainer:
 
         val_loss /= len(self.val_dl)
         val_acc /= len(self.val_dl)
-        self.history["val_loss"].append(val_loss)
-        self.history["val_acc"].append(val_acc)
         
         return train_loss,val_loss,train_acc,val_acc
+    
     
     def _log_metrics(self,train_loss,val_loss,train_acc,val_acc,seen_tokens):
         wandb.log({
@@ -104,7 +98,7 @@ class Trainer:
             "val loss": round(val_loss,4),
             "train acc": round(train_acc,4),
             "val acc": round(val_acc,4),
-            "seen tokens": seen_tokens
+            "seen tokens": seen_tokens # diff 2 
         })
 
     def _generate_text(self):
@@ -140,10 +134,14 @@ class Trainer:
 
     def train(self):
         for epoch in range(self.config["epochs"]):
-            logging.info(f"Epoch {epoch+1}/{self.config['epochs']}")
+            logging.info(f"Epoch {epoch+1}/{self.config['epochs']} - Training ...")
             train_loss,val_loss,train_acc,val_acc = self._run_epoch()
+            self.history["train_loss"].append(train_loss)
+            self.history["train_acc"].append(train_acc)
+            self.history["val_loss"].append(val_loss)
+            self.history["val_acc"].append(val_acc)
             self._log_metrics(train_loss,val_loss,train_acc,val_acc,self.seen_tokens)
-            logging.info(f"Train loss: {train_loss:.4f} | Train acc: {train_acc:.4f} | Val loss: {val_loss:.4f}  | Val acc: {val_acc:.4f}")
+            logging.info(f"Epoch {epoch+1}/{self.config['epochs']} | Train loss: {train_loss:.4f} | Train acc: {train_acc:.4f} | Val loss: {val_loss:.4f}  | Val acc: {val_acc:.4f}")
 
             if self.generate_text_config["text_to_generate"] :
                 generated_text = self._generate_text()
