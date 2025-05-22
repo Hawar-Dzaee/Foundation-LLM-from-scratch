@@ -7,7 +7,7 @@ from processing_data.dataset import Data
 from processing_data.dataloader import get_data_loader
 from gpt2 import GPT2Model
 from metrics import cross_entropy,accuracy
-from train import Trainer
+from trainer import Trainer
 
 
 
@@ -64,7 +64,7 @@ optimizer = torch.optim.AdamW(model.parameters(),lr=0.0004)
 
 wandb.init(
     project="Foundation_models",
-    name="next token prediction tranining",
+    name="train gpt2",
     config=config
 )
 
@@ -82,5 +82,5 @@ trainer = Trainer(
 )
 
 if __name__ == "__main__":
-    trainer.train(epochs=10,generate_text=True)
+    trainer.train()
     wandb.finish()

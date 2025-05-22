@@ -34,4 +34,6 @@ num_classes: 50257 # for next token prediction must equal vocab_size, for classi
 # optimizer
 learning_rate: 0.0004
 
+# training
+epochs: 10
 
