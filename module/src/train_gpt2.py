@@ -9,8 +9,6 @@ from gpt2 import GPT2Model
 from metrics import cross_entropy,accuracy
 from trainer import Trainer
 
-
-
 with open("config.yaml","r") as f:
     config = yaml.safe_load(f)
 
@@ -64,7 +62,7 @@ optimizer = torch.optim.AdamW(model.parameters(),lr=0.0004)
 
 wandb.init(
     project="Foundation_models",
-    name="train gpt2",
+    name="generate text as function",
     config=config
 )
 
