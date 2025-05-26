@@ -83,7 +83,7 @@ class Trainer:
             loss,acc = self._run_batch_val(batch)
             val_loss += loss
             val_acc += acc
-
+            
         val_loss /= len(self.val_dl)
         val_acc /= len(self.val_dl)
         

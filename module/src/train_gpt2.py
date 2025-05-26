@@ -15,13 +15,13 @@ with open("config.yaml","r") as f:
 with open("generate_text_config.yaml","r") as f:
     generate_text_config = yaml.safe_load(f)
 
-with open("raw_data/the-verdict.txt","r") as f: 
-    raw_text = f.read()
 
-train_ratio = 0.9
-split_index = int(len(raw_text) * train_ratio)
-train_text = raw_text[:split_index]
-val_text = raw_text[split_index:]
+with open("raw_data/the-verdict-train.txt","r") as f: 
+    train_text = f.read()
+with open("raw_data/the-verdict-val.txt","r") as f: 
+    val_text = f.read()
+
+
 
 
 
@@ -60,11 +60,7 @@ model = GPT2Model(config)
 optimizer = torch.optim.AdamW(model.parameters(),lr=0.0004)
 
 
-wandb.init(
-    project="Foundation_models",
-    name="generate text as function",
-    config=config
-)
+
 
 
 trainer = Trainer(
@@ -80,5 +76,11 @@ trainer = Trainer(
 )
 
 if __name__ == "__main__":
+    wandb.init(
+    project="Foundation_models",
+    name="generate text as function",
+    config=config
+)
     trainer.train()
     wandb.finish()
+    torch.save(model.state_dict(), 'model.pth')

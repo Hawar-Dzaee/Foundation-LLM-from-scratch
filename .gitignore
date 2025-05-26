@@ -9,5 +9,5 @@ punching_bag
 .env
 wandb/
 .pytest_cache/
-
+model.pth
 TODO
