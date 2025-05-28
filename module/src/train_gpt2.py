@@ -78,7 +78,7 @@ trainer = Trainer(
 if __name__ == "__main__":
     wandb.init(
     project="Foundation_models",
-    name="generate text as function",
+    name="sanity check",
     config=config
 )
     trainer.train()
