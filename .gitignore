@@ -8,7 +8,6 @@ raw_data/
 .env
 wandb/
 .pytest_cache/
-model.pth
 TODO
 *.pth
 sft_model.pth

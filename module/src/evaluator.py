@@ -33,11 +33,11 @@ class Evaluator:
 
 
     
-    def _log_metrics(self,test_loss,test_acc):
-        wandb.log({
-            "test_loss": test_loss,
-            "test_acc": test_acc
-        })
+
+
+    def _log_summary(self,test_loss,test_acc):
+        wandb.run.summary["final_test_accuracy"] = test_acc
+        wandb.run.summary["final_test_loss"] = test_loss
     
     def evaluate(self):
         test_loss,test_acc = 0,0
@@ -52,6 +52,5 @@ class Evaluator:
 
         
         logger.info(f"Test Loss: {test_loss:.4f} - Test Acc: {test_acc:.4f}")
-        self._log_metrics(test_loss,test_acc)
-
+        self._log_summary(test_loss,test_acc)
         return test_loss,test_acc
