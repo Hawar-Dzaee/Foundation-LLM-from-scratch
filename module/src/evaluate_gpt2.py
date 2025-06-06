@@ -62,7 +62,7 @@ evaluator = Evaluator(
 if __name__ == "__main__":
     wandb.init(
         project="Foundation_models",
-        name="evaluating gpt2",
+        name="evaluating gpt2 adding inference file",
         config=config
     )
     evaluator.evaluate()

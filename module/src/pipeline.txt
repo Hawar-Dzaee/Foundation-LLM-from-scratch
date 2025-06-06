@@ -1,0 +1,4 @@
+run sequetially the following 
+
+1- next token prediction (train_gpt2.py ---> evaluate_gpt2.py) 
+2- SFT (SFT.py -----> evaluate_SFT.py) 

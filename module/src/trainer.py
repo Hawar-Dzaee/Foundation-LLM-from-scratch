@@ -1,7 +1,7 @@
 import logging
 import wandb
 import torch
-from utils import generate_text
+from inference import generate_text
 
 logging.basicConfig(
     level=logging.INFO,
@@ -114,7 +114,12 @@ class Trainer:
             if self.generate_text_config["text_to_generate"] :
                 generated_text = generate_text(
                     model = self.model,
-                    config = self.generate_text_config
+                    device= self.generate_text_config['device'],
+                    top_k= self.generate_text_config["top_k"],
+                    temperature= self.generate_text_config["temperature"],
+                    look_back= self.generate_text_config["look_back"],
+                    num_tokens_to_generate= self.generate_text_config["num_tokens_to_generate"],
+                    text_to_generate= self.generate_text_config["text_to_generate"]
                     )
                 logging.info(f"Generated text: {generated_text}")
 

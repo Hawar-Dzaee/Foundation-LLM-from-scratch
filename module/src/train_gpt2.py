@@ -78,7 +78,7 @@ trainer = Trainer(
 if __name__ == "__main__":
     wandb.init(
     project="Foundation_models",
-    name="sanity check",
+    name="adding inference file",
     config=config
 )
     trainer.train()

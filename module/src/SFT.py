@@ -93,7 +93,7 @@ trainer = Trainer(
 if __name__ == "__main__":
     wandb.init(
     project="Foundation_models",
-    name="SFT",
+    name="SFT adding inference file",
     config=config
 )
     trainer.train()
