@@ -11,3 +11,5 @@ wandb/
 TODO
 *.pth
 sft_model.pth
+.chainlit
+chainlit.md
