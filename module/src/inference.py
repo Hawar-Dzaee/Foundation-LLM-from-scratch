@@ -4,38 +4,58 @@ from utils import text_to_tokens,tokens_to_text
 
 
 
-def generate_text(
-          model,
-          device,
-          top_k=None,
-          temperature=1.0,
-          look_back=10,
-          num_tokens_to_generate=100,
-          text_to_generate="",
-          ):
-        starting_tokens = text_to_tokens(text_to_generate).to(device)
+class TextGeneration:
+    def __init__(
+            self,
+            model,
+            top_k = None, 
+            temperature =1.0,
+            look_back = 100,
+            num_tokens_to_generate = 50,
+            device = "cpu"
+    ):
+        self.model = model
+        self.top_k = top_k
+        self.temperature = temperature
+        self.look_back = look_back
+        self.num_tokens_to_generate = num_tokens_to_generate
+        self.device = device
 
-        model.eval()
+
+    def chat(self,input_text):
+        input_tokens = text_to_tokens(input_text).to(self.device)
+        output_tokens = []
+
+        self.model.eval()
         with torch.no_grad():
-            for _ in range(num_tokens_to_generate):
-                starting_tokens = starting_tokens[:, -look_back:]
-                logits = model(starting_tokens)[:,-1,:] #logits of the last token
+            for _ in range(self.num_tokens_to_generate):
+                input_tokens = input_tokens[:,-self.look_back:]
+                logits = self.model(input_tokens)[:,-1,:]
+                predicted_token = self._token_prediction(logits)
+                output_tokens.append(predicted_token.item())
+                tokens = torch.cat([input_tokens,predicted_token],dim=1)
+                input_tokens = tokens 
 
-                if top_k : 
-                    top_values, _ = torch.topk(logits,top_k)
-                    logits = torch.where(
-                        logits<top_values[:,-1],
-                        -torch.inf,
-                        logits
-                        )
-                    logits = logits/(temperature+1e-7)
-                    probs  = torch.softmax(logits,dim=-1) 
-                    token_predicted = torch.multinomial(probs,num_samples=1)
-                else : 
-                    token_predicted = torch.argmax(logits,dim=-1,keepdim=True) 
+        output_text = tokens_to_text(output_tokens)
+        
 
-                tokens = torch.concat([starting_tokens,token_predicted],dim=1) 
-                text = tokens_to_text(tokens)
-                text = text.replace("\n", " ")
-                starting_tokens = tokens
-        return text
+        return input_text, output_text
+
+
+
+
+    def _token_prediction(self,logits):
+        if self.top_k: 
+            top_values, _ = torch.topk(logits,self.top_k)
+            logits = torch.where(
+                logits < top_values[:,-1],
+                -torch.inf,
+                logits
+            )
+            logits = logits/(self.temperature+1e-7)
+            probs = torch.softmax(logits,dim=-1)
+            predicted_token = torch.multinomial(probs,num_samples=1)
+        else : 
+            predicted_token = torch.argmax(logits,dim=-1,keepdim=True)
+        
+        return predicted_token

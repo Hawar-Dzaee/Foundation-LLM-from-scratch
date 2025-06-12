@@ -1,7 +1,7 @@
-text_to_generate: "Every single step"
+input_text: "Every single step"
 look_back: 256
 num_tokens_to_generate: 20
-top_k : 5
+top_k : 2
 temperature : 1.0
 eos_id : null
 device : 'cpu'

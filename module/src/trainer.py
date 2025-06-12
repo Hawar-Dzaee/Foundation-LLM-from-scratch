@@ -1,7 +1,7 @@
 import logging
 import wandb
 import torch
-from inference import generate_text
+from inference import TextGeneration
 
 logging.basicConfig(
     level=logging.INFO,
@@ -111,17 +111,21 @@ class Trainer:
             self._log_metrics(train_loss,val_loss,train_acc,val_acc,self.seen_tokens)
             logging.info(f"Epoch {epoch+1}/{self.config['epochs']} | Train loss: {train_loss:.4f} | Train acc: {train_acc:.4f} | Val loss: {val_loss:.4f}  | Val acc: {val_acc:.4f}")
 
-            if self.generate_text_config["text_to_generate"] :
-                generated_text = generate_text(
+            if self.generate_text_config["input_text"] :
+                text_generation = TextGeneration(
                     model = self.model,
-                    device= self.generate_text_config['device'],
                     top_k= self.generate_text_config["top_k"],
                     temperature= self.generate_text_config["temperature"],
                     look_back= self.generate_text_config["look_back"],
                     num_tokens_to_generate= self.generate_text_config["num_tokens_to_generate"],
-                    text_to_generate= self.generate_text_config["text_to_generate"]
+                    device= self.generate_text_config['device'],
                     )
-                logging.info(f"Generated text: {generated_text}")
+                input_text,output_text = text_generation.chat(
+                    input_text= self.generate_text_config["input_text"],
+
+                )
+                
+                logging.info(f"Input Text: {input_text}\nOutput Text: {output_text}")
 
         return self.history
 

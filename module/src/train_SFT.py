@@ -37,8 +37,8 @@ test_data = data[train_index + val_index:]
 with open("config.yaml","r") as f:
     config = yaml.safe_load(f)
 
-with open("generate_text_config.yaml","r") as f:
-    generate_text_config = yaml.safe_load(f)
+with open("chat_completion_config.yaml","r") as f:
+    chat_config = yaml.safe_load(f)
 
 
 
@@ -87,7 +87,7 @@ trainer = Trainer(
     optimizer=optimizer,
     config=config,
     device="cpu",
-    generate_text_config=generate_text_config
+    generate_text_config=chat_config
 )
 
 if __name__ == "__main__":

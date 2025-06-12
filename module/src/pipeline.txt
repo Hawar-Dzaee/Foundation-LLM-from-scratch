@@ -1,4 +1,13 @@
 run sequetially the following 
 
-1- next token prediction (train_gpt2.py ---> evaluate_gpt2.py) 
-2- SFT (SFT.py -----> evaluate_SFT.py) 
+1- next token prediction 
+    train_gpt2.py [need to sample to check your progress] (next token prediction)
+    evaluate_gpt2.py [don't need to sample; afterwards maybe] (next token prediction)
+
+
+2- SFT 
+    SFT.py both (next token prediction) & (chat completion)
+    evaluate_SFT.py [just the metric won't help, you need to test on some samples] (chat)
+
+
+3- app.py (UI) ; check if the app is working properly

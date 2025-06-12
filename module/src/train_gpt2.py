@@ -78,7 +78,7 @@ trainer = Trainer(
 if __name__ == "__main__":
     wandb.init(
     project="Foundation_models",
-    name="adding inference file",
+    name="changing text generation to class",
     config=config
 )
     trainer.train()
