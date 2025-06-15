@@ -12,13 +12,15 @@ class TextGeneration:
             temperature =1.0,
             look_back = 100,
             num_tokens_to_generate = 50,
-            device = "cpu"
+            eos_token_id = 50256,
+            device = "cpu",
     ):
         self.model = model
         self.top_k = top_k
         self.temperature = temperature
         self.look_back = look_back
         self.num_tokens_to_generate = num_tokens_to_generate
+        self.eos_token_id = eos_token_id
         self.device = device
 
 
@@ -32,6 +34,8 @@ class TextGeneration:
                 input_tokens = input_tokens[:,-self.look_back:]
                 logits = self.model(input_tokens)[:,-1,:]
                 predicted_token = self._token_prediction(logits)
+                if predicted_token.item() == self.eos_token_id : 
+                    break  
                 output_tokens.append(predicted_token.item())
                 tokens = torch.cat([input_tokens,predicted_token],dim=1)
                 input_tokens = tokens 
