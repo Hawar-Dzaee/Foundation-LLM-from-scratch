@@ -1,7 +1,10 @@
+import time 
 import logging
 import wandb
 import torch
+from tqdm import tqdm
 from inference import TextGeneration
+
 
 logging.basicConfig(
     level=logging.INFO,
@@ -71,7 +74,8 @@ class Trainer:
         train_loss,val_loss = 0,0
         train_acc,val_acc = 0,0
         
-        for batch in self.train_dl:
+        train_iter = tqdm(self.train_dl, desc="Training", leave=False)
+        for batch in train_iter:
             loss,acc = self._run_batch_train(batch)
             train_loss += loss
             train_acc += acc
@@ -79,7 +83,8 @@ class Trainer:
         train_loss /= len(self.train_dl)
         train_acc /= len(self.train_dl)
 
-        for batch in self.val_dl:
+        val_iter = tqdm(self.val_dl, desc="Validation", leave=False)
+        for batch in val_iter:
             loss,acc = self._run_batch_val(batch)
             val_loss += loss
             val_acc += acc
@@ -101,6 +106,7 @@ class Trainer:
 
 
     def train(self):
+        start_time = time.time()
         for epoch in range(self.config["epochs"]):
             logging.info(f"Epoch {epoch+1}/{self.config['epochs']} - Training ...")
             train_loss,val_loss,train_acc,val_acc = self._run_epoch()
@@ -126,6 +132,9 @@ class Trainer:
                 )
                 
                 logging.info(f"Input Text: {input_text}\nOutput Text: {output_text}")
+
+        duration = time.time() - start_time
+        logging.info(f'Total Training Duration : {duration:.4f}')
 
         return self.history
 

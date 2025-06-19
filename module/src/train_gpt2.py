@@ -78,7 +78,7 @@ trainer = Trainer(
 if __name__ == "__main__":
     wandb.init(
     project="Foundation_models",
-    name="changing text generation to class",
+    name="adding tqdm",
     config=config
 )
     trainer.train()
