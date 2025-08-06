@@ -3,14 +3,23 @@ from typing import List,Dict,Any
 import torch
 from torch.utils.data import Dataset
 import pandas as pd
+import tiktoken
 
 
 class Data(Dataset):
-    def __init__(self,raw_text,tokenizer,context_length,stride):
+    def __init__(
+            self,
+            raw_text:str,
+            tokenizer:tiktoken,
+            context_length:int,
+            stride:int
+            ):
         self.token_id = tokenizer.encode(raw_text,allowed_special={'<|endoftext|>'})
         self.num_tokens = len(self.token_id)
         self.X = []
         self.y = []
+
+        assert self.num_tokens > context_length, "Number of tokens is less than Context length"
 
         for i in range(0,self.num_tokens-context_length,stride):
             X = self.token_id[i:i+context_length]
