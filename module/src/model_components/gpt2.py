@@ -1,8 +1,8 @@
 from typing import Dict, Any
 import torch 
 from torch import nn 
-from embeddings import Embeddings
-from transformer_block import TransformerBlock
+from .embeddings import Embeddings
+from .transformer_block import TransformerBlock
 
 
 

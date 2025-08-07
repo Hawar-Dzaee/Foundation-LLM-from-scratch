@@ -3,7 +3,7 @@ import logging
 import wandb
 import torch
 from tqdm import tqdm
-from inference import TextGeneration
+from common.inference import TextGeneration
 
 
 logging.basicConfig(

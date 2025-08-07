@@ -9,9 +9,9 @@ import logging
 from processing_data.dataset import InstructionDataset
 from processing_data.dataloader import get_data_loader,instruction_collate_fn
 
-from gpt2 import GPT2Model
-from metrics import cross_entropy,accuracy
-from evaluator import Evaluator
+from model_components.gpt2 import GPT2Model
+from common.metrics import cross_entropy,accuracy
+from common.evaluator import Evaluator
 
 logging.basicConfig(
     level=logging.INFO,

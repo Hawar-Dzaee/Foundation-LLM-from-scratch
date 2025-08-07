@@ -3,8 +3,8 @@ import chainlit
 import torch 
 import tiktoken
 
-from gpt2 import GPT2Model
-from inference import TextGeneration
+from model_components.gpt2 import GPT2Model
+from common.inference import TextGeneration
 
 
 tokenizer = tiktoken.get_encoding("gpt2")

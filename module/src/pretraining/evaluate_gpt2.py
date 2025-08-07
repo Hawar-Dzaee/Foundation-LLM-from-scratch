@@ -9,9 +9,9 @@ import tiktoken
 
 from processing_data.dataloader import get_data_loader
 from processing_data.dataset import Data
-from gpt2 import GPT2Model
-from evaluator import Evaluator
-from metrics import accuracy, cross_entropy
+from model_components.gpt2 import GPT2Model
+from common.evaluator import Evaluator
+from common.metrics import accuracy, cross_entropy
 
 logging.basicConfig(
     level=logging.INFO,

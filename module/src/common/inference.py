@@ -1,6 +1,6 @@
 import torch
 
-from utils import text_to_tokens,tokens_to_text
+from .utils import text_to_tokens,tokens_to_text
 
 
 
