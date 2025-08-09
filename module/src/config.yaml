@@ -8,7 +8,7 @@ embed_dim: 768
 stride: 256
 
 # DATALOADER
-batch_size: 1
+batch_size: 2
 shuffle: False
 drop_last: True
 num_workers: 0
@@ -16,7 +16,7 @@ num_workers: 0
 # POSITIONAL ENCODING
 # Durning training, num_tokens == context_window
 # Durning inference, num_tokens <= context_window
-context_window: 256
+context_window: 502
 
 # Mulit-head attention
 num_heads: 12
