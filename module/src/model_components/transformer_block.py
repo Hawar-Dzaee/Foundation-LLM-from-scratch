@@ -32,7 +32,7 @@ class TransformerBlock(nn.Module):
        x = self.ln1(x)
        x,_ = self.mha(
            x,x,x,
-           attn_mask= torch.triu(torch.ones(num_tokens,num_tokens),diagonal=1).bool())
+           attn_mask= torch.triu(torch.ones(num_tokens,num_tokens,device=x.device),diagonal=1).bool())
        x = self.dp1(x)
 
        x = x + shortcut

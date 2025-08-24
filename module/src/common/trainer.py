@@ -24,7 +24,6 @@ class Trainer:
         accuracy_fn,
         optimizer,
         config,
-        device,
         generate_text_config
     ):
 
@@ -35,7 +34,7 @@ class Trainer:
         self.accuracy_fn = accuracy_fn
         self.optimizer = optimizer
         self.config = config
-        self.device = device
+        self.device = config['device']
         self.generate_text_config = generate_text_config
         self.seen_tokens = 0
         self.history = {
@@ -48,8 +47,14 @@ class Trainer:
 
     def _run_batch_train(self, batch):
         self.model.train()
+        self.model = self.model.to(self.device)
         inputs, targets = batch
         inputs, targets = inputs.to(self.device), targets.to(self.device)
+
+        # print(f"Model device: {next(self.model.parameters()).device}")
+        # print(f"Input device: {inputs.device}")
+        # print(f"Input device: {targets.device}")
+
         logits = self.model(inputs)
         loss = self.loss_fn(logits, targets)
         acc = self.accuracy_fn(logits,targets) #accuracy of the batch
