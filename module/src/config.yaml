@@ -8,7 +8,7 @@ embed_dim: 768
 stride: 256
 
 # DATALOADER
-batch_size: 2
+batch_size: 1
 shuffle: False
 drop_last: True
 num_workers: 0
@@ -16,14 +16,14 @@ num_workers: 0
 # POSITIONAL ENCODING
 # Durning training, num_tokens == context_window
 # Durning inference, num_tokens <= context_window
-context_window: 502
+context_window: 256
 
 # Mulit-head attention
 num_heads: 12
 Q_K_V_bias: False
 kv_bias: False
 batch_first: True
-device: "cuda"
+device: "cpu"
 
 # Transformer block
 n_layers: 12

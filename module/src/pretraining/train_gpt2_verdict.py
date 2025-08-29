@@ -71,14 +71,13 @@ trainer = Trainer(
     accuracy_fn=accuracy,
     optimizer=optimizer,
     config=config,
-    device="cpu",
     generate_text_config=generate_text_config
 )
 
 if __name__ == "__main__":
     wandb.init(
     project="Foundation_models",
-    name="changing folder diretory",
+    name="working on CPU",
     config=config
 )
     trainer.train()
