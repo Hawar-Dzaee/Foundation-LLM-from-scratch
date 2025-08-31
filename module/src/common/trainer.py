@@ -45,7 +45,7 @@ class Trainer:
         }
 
 
-    def _run_batch_train(self, batch):
+    def _run_batch_train(self, batch,batch_idx):
         self.model.train()
         self.model = self.model.to(self.device)
         inputs, targets = batch
@@ -62,9 +62,17 @@ class Trainer:
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
+
+        if batch_idx % 50 == 0:
+            wandb.log({
+                "batch_train_loss": loss.item(),
+                "batch_train_acc": acc.item(),
+                "seen_tokens": self.seen_tokens
+            })
+
         return loss.item(),acc.item()
     
-    def _run_batch_val(self, batch):
+    def _run_batch_val(self, batch,batch_idx):
         self.model.eval()
         with torch.no_grad():
             inputs, targets = batch
@@ -72,6 +80,13 @@ class Trainer:
             logits = self.model(inputs)
             loss = self.loss_fn(logits, targets)
             acc = self.accuracy_fn(logits,targets) #accuracy of the batch
+
+            if batch_idx % 50 == 0:
+                wandb.log({
+                    "batch_val_loss": loss.item(),
+                    "batch_val_acc": acc.item(),
+                    "seen_tokens": self.seen_tokens
+                })
             return loss.item(),acc.item()
 
     
@@ -80,20 +95,30 @@ class Trainer:
         train_acc,val_acc = 0,0
         
         train_iter = tqdm(self.train_dl, desc="Training", leave=False)
-        for batch in train_iter:
-            loss,acc = self._run_batch_train(batch)
+        for batch_idx, batch in enumerate(train_iter):
+            loss, acc = self._run_batch_train(batch, batch_idx)
             train_loss += loss
             train_acc += acc
+
+            train_iter.set_postfix({
+                "batch_loss": f"{loss:.4f}",
+                "batch_acc": f"{acc:.4f}"
+            })
 
         train_loss /= len(self.train_dl)
         train_acc /= len(self.train_dl)
 
         val_iter = tqdm(self.val_dl, desc="Validation", leave=False)
-        for batch in val_iter:
-            loss,acc = self._run_batch_val(batch)
+        for batch_idx, batch in enumerate(val_iter):
+            loss, acc = self._run_batch_val(batch, batch_idx)
             val_loss += loss
             val_acc += acc
-            
+
+            val_iter.set_postfix({
+                "batch_loss": f"{loss:.4f}",
+                "batch_acc": f"{acc:.4f}"
+            })
+
         val_loss /= len(self.val_dl)
         val_acc /= len(self.val_dl)
         
