@@ -80,19 +80,30 @@ class Trainer:
         train_acc,val_acc = 0,0
         
         train_iter = tqdm(self.train_dl, desc="Training", leave=False)  # to remove 
-        for batch in train_iter:
+        for batch_idx,batch in enumerate(train_iter):
             loss,acc = self._run_batch_train(batch)
             train_loss += loss
             train_acc += acc
+
+
+            train_iter.set_postfix({
+            "batch_loss": f"{loss:.4f}",
+            "batch_acc": f"{acc:.4f}"
+        })
 
         train_loss /= len(self.train_dl)
         train_acc /= len(self.train_dl)
 
         val_iter = tqdm(self.val_dl, desc="Validation", leave=False)    # to remove 
-        for batch in val_iter:
+        for batch_idx,batch in enumerate(val_iter):
             loss,acc = self._run_batch_val(batch)
             val_loss += loss
             val_acc += acc
+
+            val_iter.set_postfix({
+            "batch_loss": f"{loss:.4f}",
+            "batch_acc": f"{acc:.4f}"
+        })
             
         val_loss /= len(self.val_dl)
         val_acc /= len(self.val_dl)
