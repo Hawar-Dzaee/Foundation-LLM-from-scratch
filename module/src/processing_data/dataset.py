@@ -1,10 +1,19 @@
+import os 
 from typing import List,Dict,Any
+
+import logging 
 
 from tqdm import tqdm
 import torch
 from torch.utils.data import Dataset
 import pandas as pd
 import tiktoken
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+)
+logger = logging.getLogger(__name__)
 
 # Text corpus 
 class Data(Dataset):
@@ -40,21 +49,31 @@ class TinyStoryData(Dataset):
     def __init__(
             self,
             dataset:str,
-            split :str, 
             tokenizer:tiktoken,
-            max_length:int = 512
+            cache_file : str,
+            max_length:int = 512,
             ):
         self.tokenizer = tokenizer
         self.dataset = []
 
-        # get rid of samples that are longer than max_length
-        for item in tqdm(dataset[split],desc="Processing Dataset"):
-            text = item['text']
-            tokenized = self.tokenizer.encode(text, allowed_special={'<|endoftext|>'}) 
-            tokenized += self.tokenizer.encode("<|endoftext|>", allowed_special={"<|endoftext|>"})
+        if os.path.exists(cache_file):
+            logging.info(f'Loading preprocessed Data from {cache_file}')
+            self.dataset = torch.load(cache_file)
 
-            if len(tokenized) <= max_length:
-                self.dataset.append(tokenized)
+
+        else : 
+            # get rid of samples that are longer than max_length
+            for item in tqdm(dataset,desc="Processing Dataset"):
+                text = item['text']
+                tokenized = self.tokenizer.encode(text, allowed_special={'<|endoftext|>'}) 
+                tokenized += self.tokenizer.encode("<|endoftext|>", allowed_special={"<|endoftext|>"})
+
+                if len(tokenized) <= max_length:
+                    self.dataset.append(tokenized)
+
+            logging.info(f"Saving processed data to {cache_file}")
+            torch.save(self.dataset,f'{cache_file}')
+            logging.info(f"Processed Data has been saved to {cache_file}")
 
             
     def __len__(self):
@@ -63,49 +82,6 @@ class TinyStoryData(Dataset):
     def __getitem__(self,idx):        
         return self.dataset[idx]
 
-
-
-# class ClassificationDataset(Dataset):
-#     def __init__(self,csv_path,tokenizer,max_len=None,pad_token_id=50256):
-#         self.df = pd.read_csv(csv_path)
-
-#         self.encoded_texts = [
-#             tokenizer.encode(text) for text in self.df['message']
-#         ]
-
-#         if max_len is None : 
-#             # self.max_len = max([len(text) for text in self.encoded_texts])
-#             self.max_len = self._longest_max_len()
-#         else : 
-#             self.max_len = max_len
-#             self.encoded_texts = [
-#                 encoded_text[:self.max_len]
-#                 for encoded_text in self.encoded_texts
-#             ]
-
-#         self.encoded_texts = [
-#             encoded_text + [pad_token_id] * (self.max_len - len(encoded_text))
-#             for encoded_text in self.encoded_texts
-#         ]
-
-#     def __getitem__(self,idx):
-#         encoded = self.encoded_texts[idx]
-#         label = self.df.iloc[idx]['label']
-#         return (
-#             torch.tensor(encoded,dtype=torch.long),
-#             torch.tensor(label,dtype=torch.long)
-#         )
-    
-#     def __len__(self):
-#         return len(self.df)
-
-#     def _longest_max_len(self):
-#         max_len = 0
-#         for encoded_text in self.encoded_texts:
-#             if len(encoded_text) > max_len:
-#                 max_len = len(encoded_text)
-#         return max_len
-        
 
 
 class InstructionDataset(Dataset):

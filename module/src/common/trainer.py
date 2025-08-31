@@ -79,7 +79,7 @@ class Trainer:
         train_loss,val_loss = 0,0
         train_acc,val_acc = 0,0
         
-        train_iter = tqdm(self.train_dl, desc="Training", leave=False)
+        train_iter = tqdm(self.train_dl, desc="Training", leave=False)  # to remove 
         for batch in train_iter:
             loss,acc = self._run_batch_train(batch)
             train_loss += loss
@@ -88,7 +88,7 @@ class Trainer:
         train_loss /= len(self.train_dl)
         train_acc /= len(self.train_dl)
 
-        val_iter = tqdm(self.val_dl, desc="Validation", leave=False)
+        val_iter = tqdm(self.val_dl, desc="Validation", leave=False)    # to remove 
         for batch in val_iter:
             loss,acc = self._run_batch_val(batch)
             val_loss += loss

@@ -20,21 +20,18 @@ with open("generate_text_config.yaml","r") as f:
 
 
 
-
-dataset = load_dataset("roneneldan/TinyStories")
-
-
 train_dataset = TinyStoryData(
-    dataset= dataset,
-    split ="train",
+    dataset= load_dataset("roneneldan/TinyStories", split="train[:10%]"),
     tokenizer=tiktoken.get_encoding("gpt2"),
-    max_length= config["context_window"]
+    cache_file = "processed_data_train.pt",
+    max_length= config["context_window"],
+
 )
 
 val_dataset = TinyStoryData(
-    dataset= dataset,
-    split ="validation",
+    dataset= load_dataset("roneneldan/TinyStories", split="train[90%:]"),
     tokenizer=tiktoken.get_encoding("gpt2"),
+    cache_file = "processed_data_valid.pt",
     max_length= config["context_window"]
 )
 
