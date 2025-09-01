@@ -13,9 +13,9 @@ class TextGeneration:
             look_back = 100,
             num_tokens_to_generate = 50,
             eos_token_id = 50256,
-            device = "cpu",
+            device = "cuda" if torch.cuda.is_available() else "cpu",
     ):
-        self.model = model
+        self.model = model.to(device)
         self.top_k = top_k
         self.temperature = temperature
         self.look_back = look_back

@@ -2,6 +2,7 @@ import yaml
 import tiktoken
 import torch
 import wandb
+import logging
 
 from datasets import load_dataset
 
@@ -21,7 +22,7 @@ with open("generate_text_config.yaml","r") as f:
 
 
 train_dataset = TinyStoryData(
-    dataset= load_dataset("roneneldan/TinyStories", split="train[:10%]"),
+    dataset= load_dataset("roneneldan/TinyStories", split="train[:1%]"),
     tokenizer=tiktoken.get_encoding("gpt2"),
     cache_file = "processed_data_train.pt",
     max_length= config["context_window"],
@@ -29,7 +30,7 @@ train_dataset = TinyStoryData(
 )
 
 val_dataset = TinyStoryData(
-    dataset= load_dataset("roneneldan/TinyStories", split="train[90%:]"),
+    dataset= load_dataset("roneneldan/TinyStories", split="train[99%:]"),
     tokenizer=tiktoken.get_encoding("gpt2"),
     cache_file = "processed_data_valid.pt",
     max_length= config["context_window"]
@@ -55,7 +56,10 @@ val_dl = get_data_loader(
 
 
 model = GPT2Model(config)
-optimizer = torch.optim.AdamW(model.parameters(),lr=0.0004)
+num_parameters = sum(p.numel() for p in model.parameters())
+logging.info(f"Number of parameters: {num_parameters}")
+
+optimizer = torch.optim.AdamW(model.parameters(),lr=config["learning_rate"])
 
 
 
@@ -75,9 +79,9 @@ trainer = Trainer(
 if __name__ == "__main__":
     wandb.init(
     project="Foundation_models",
-    name="Training On single GPU Lambda Cloud",
+    name="Saving best model every 30 batches",
     config=config
 )
     trainer.train()
     wandb.finish()
-    torch.save(model.state_dict(), 'model.pth')
+    torch.save(model.state_dict(), 'final_model.pth')

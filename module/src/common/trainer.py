@@ -43,6 +43,7 @@ class Trainer:
             "val_loss": [],
             "val_acc": [],
         }
+        self.log_ever_n_batches = config['log_ever_n_batches']
 
 
     def _run_batch_train(self, batch):
@@ -76,37 +77,42 @@ class Trainer:
 
     
     def _run_epoch(self):
+        num_train_batches = len(self.train_dl)
+        num_val_batches = len(self.val_dl)
         train_loss,val_loss = 0,0
-        train_acc,val_acc = 0,0
-        
-        train_iter = tqdm(self.train_dl, desc="Training", leave=False)  # to remove 
-        for batch_idx,batch in enumerate(train_iter):
+        train_acc,val_acc = 0,0 
+
+        best_train_loss = float('inf')
+        for batch_idx,batch in enumerate(self.train_dl):
             loss,acc = self._run_batch_train(batch)
             train_loss += loss
             train_acc += acc
+            if (batch_idx + 1) % self.log_ever_n_batches == 0:
+                logging.info(f"Batch {batch_idx+1:04d}/{num_train_batches} | Train Batch loss: {loss:.4f} | Train Batch acc: {acc:.4f}")
+                if loss < best_train_loss:
+                    best_train_loss = loss
+                    torch.save(self.model.state_dict(), f'best_model_train_loss.pth')
+                    logging.info(f"New best model saved! Train loss: {loss:.4f}")
+
+        train_loss /= num_train_batches
+        train_acc /= num_train_batches
 
 
-            train_iter.set_postfix({
-            "batch_loss": f"{loss:.4f}",
-            "batch_acc": f"{acc:.4f}"
-        })
-
-        train_loss /= len(self.train_dl)
-        train_acc /= len(self.train_dl)
-
-        val_iter = tqdm(self.val_dl, desc="Validation", leave=False)    # to remove 
-        for batch_idx,batch in enumerate(val_iter):
+        best_val_loss = float('inf')
+        best_val_acc = 0
+        for batch_idx,batch in enumerate(self.val_dl):
             loss,acc = self._run_batch_val(batch)
             val_loss += loss
             val_acc += acc
+            if (batch_idx + 1) % self.log_ever_n_batches == 0:
+                logging.info(f"Batch {batch_idx+1:04d}/{num_val_batches} | Val Batch loss: {loss:.4f} | Val Batch acc: {acc:.4f}")
+                if loss < best_val_loss:
+                    best_val_loss = loss
+                    torch.save(self.model.state_dict(), f'best_model_val_loss.pth')
+                    logging.info(f"New best model saved! Val loss: {loss:.4f}")
 
-            val_iter.set_postfix({
-            "batch_loss": f"{loss:.4f}",
-            "batch_acc": f"{acc:.4f}"
-        })
-            
-        val_loss /= len(self.val_dl)
-        val_acc /= len(self.val_dl)
+        val_loss /= num_val_batches
+        val_acc /= num_val_batches
         
         return train_loss,val_loss,train_acc,val_acc
     
@@ -123,7 +129,11 @@ class Trainer:
 
     def train(self):
         start_time = time.time()
-        for epoch in range(self.config["epochs"]):
+        
+        # Create a single progress bar for epochs
+        epoch_pbar = tqdm(range(self.config["epochs"]), desc="Training Epochs", unit="epoch")
+        
+        for epoch in epoch_pbar:
             logging.info(f"Epoch {epoch+1}/{self.config['epochs']} - Training ...")
             train_loss,val_loss,train_acc,val_acc = self._run_epoch()
             self.history["train_loss"].append(train_loss)
@@ -131,6 +141,16 @@ class Trainer:
             self.history["val_loss"].append(val_loss)
             self.history["val_acc"].append(val_acc)
             self._log_metrics(train_loss,val_loss,train_acc,val_acc,self.seen_tokens)
+            
+            # Update progress bar with current metrics
+            epoch_pbar.set_postfix({
+                "train_loss": f"{train_loss:.4f}",
+                "val_loss": f"{val_loss:.4f}",
+                "train_acc": f"{train_acc:.4f}",
+                "val_acc": f"{val_acc:.4f}"
+            })
+
+            
             logging.info(f"Epoch {epoch+1}/{self.config['epochs']} | Train loss: {train_loss:.4f} | Train acc: {train_acc:.4f} | Val loss: {val_loss:.4f}  | Val acc: {val_acc:.4f}")
 
             if self.generate_text_config["input_text"] :

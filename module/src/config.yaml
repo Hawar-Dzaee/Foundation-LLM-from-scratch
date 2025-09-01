@@ -8,7 +8,7 @@ embed_dim: 768
 stride: 256
 
 # DATALOADER
-batch_size: 2
+batch_size: 32
 shuffle: False
 drop_last: True
 num_workers: 0
@@ -36,4 +36,5 @@ learning_rate: 0.0004
 
 # training
 epochs: 10
+log_ever_n_batches: 30
 
