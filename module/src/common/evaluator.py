@@ -24,6 +24,7 @@ class Evaluator:
     def _run_batch(self, batch):
         self.model.eval()
         with torch.no_grad():
+            self.model.to(self.device)
             inputs, targets = batch
             inputs, targets = inputs.to(self.device), targets.to(self.device)
             logits = self.model(inputs)

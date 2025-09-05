@@ -4,4 +4,4 @@ num_tokens_to_generate: 20
 top_k : 2
 temperature : 1.0
 eos_id : null
-device : 'cpu'
+device : 'cuda'

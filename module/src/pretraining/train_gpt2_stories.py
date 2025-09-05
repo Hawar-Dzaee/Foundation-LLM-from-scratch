@@ -56,6 +56,16 @@ val_dl = get_data_loader(
 
 
 model = GPT2Model(config)
+import os
+
+# Check if a best model checkpoint exists and load it
+best_model_path = "best_model_train_loss.pth"
+if os.path.exists(best_model_path):
+    model.load_state_dict(torch.load(best_model_path,weights_only=True, map_location=config.get("device", "cpu")))
+    logging.info(f"Loaded best model from {best_model_path}")
+else:
+    logging.info("No best model checkpoint found. Training from scratch.")
+
 num_parameters = sum(p.numel() for p in model.parameters())
 logging.info(f"Number of parameters: {num_parameters}")
 
@@ -79,7 +89,7 @@ trainer = Trainer(
 if __name__ == "__main__":
     wandb.init(
     project="Foundation_models",
-    name="Saving best model every 30 batches",
+    name="On 3 epochs",
     config=config
 )
     trainer.train()
