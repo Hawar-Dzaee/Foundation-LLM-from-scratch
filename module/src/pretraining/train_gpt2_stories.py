@@ -67,7 +67,7 @@ else:
     logging.info("No best model checkpoint found. Training from scratch.")
 
 num_parameters = sum(p.numel() for p in model.parameters())
-logging.info(f"Number of parameters: {num_parameters}")
+logging.info(f"Number of parameters: {num_parameters:,}")
 
 optimizer = torch.optim.AdamW(model.parameters(),lr=config["learning_rate"])
 
@@ -89,7 +89,7 @@ trainer = Trainer(
 if __name__ == "__main__":
     wandb.init(
     project="Foundation_models",
-    name="On 3 epochs",
+    name="alternative batching/Epoch logging",
     config=config
 )
     trainer.train()

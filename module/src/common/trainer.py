@@ -37,6 +37,8 @@ class Trainer:
         self.device = config['device']
         self.generate_text_config = generate_text_config
         self.seen_tokens = 0
+        self.global_step = 0
+
         self.history = {
             "train_loss": [],
             "train_acc": [],
@@ -51,11 +53,6 @@ class Trainer:
         self.model = self.model.to(self.device)
         inputs, targets = batch
         inputs, targets = inputs.to(self.device), targets.to(self.device)
-
-        # print(f"Model device: {next(self.model.parameters()).device}")
-        # print(f"Input device: {inputs.device}")
-        # print(f"Input device: {targets.device}")
-
         logits = self.model(inputs)
         loss = self.loss_fn(logits, targets)
         acc = self.accuracy_fn(logits,targets) #accuracy of the batch
@@ -72,7 +69,7 @@ class Trainer:
             inputs, targets = inputs.to(self.device), targets.to(self.device)
             logits = self.model(inputs)
             loss = self.loss_fn(logits, targets)
-            acc = self.accuracy_fn(logits,targets) #accuracy of the batch
+            acc = self.accuracy_fn(logits,targets) 
             return loss.item(),acc.item()
 
     
@@ -87,8 +84,21 @@ class Trainer:
             loss,acc = self._run_batch_train(batch)
             train_loss += loss
             train_acc += acc
+            self.global_step += 1 # NEW 
+
+            # Step level- logging 
             if (batch_idx + 1) % self.log_ever_n_batches == 0:
-                logging.info(f"Batch {batch_idx+1:04d}/{num_train_batches} | Train Batch loss: {loss:.4f} | Train Batch acc: {acc:.4f}")
+                logging.info(
+                    f"Batch {batch_idx+1:04d}/{num_train_batches} | "
+                    f"Train Batch loss: {loss:.4f} | Train Batch acc: {acc:.4f}"
+                    )
+                wandb.log({
+                    "train/loss_step": round(loss,4),
+                    "train/acc_step": round(acc,4),
+                    "train/seen tokens": self.seen_tokens,
+                    "global_step": self.global_step
+                })
+
                 if loss < best_train_loss:
                     best_train_loss = loss
                     torch.save(self.model.state_dict(), f'best_model_train_loss.pth')
@@ -104,12 +114,11 @@ class Trainer:
             loss,acc = self._run_batch_val(batch)
             val_loss += loss
             val_acc += acc
-            if (batch_idx + 1) % self.log_ever_n_batches == 0:
-                logging.info(f"Batch {batch_idx+1:04d}/{num_val_batches} | Val Batch loss: {loss:.4f} | Val Batch acc: {acc:.4f}")
-                if loss < best_val_loss:
-                    best_val_loss = loss
-                    torch.save(self.model.state_dict(), f'best_model_val_loss.pth')
-                    logging.info(f"New best model saved! Val loss: {loss:.4f}")
+
+            if loss < best_val_loss:
+                best_val_loss = loss
+                torch.save(self.model.state_dict(), f'best_model_val_loss.pth')
+                logging.info(f"New best model saved! Val loss: {loss:.4f}")
 
         val_loss /= num_val_batches
         val_acc /= num_val_batches
@@ -117,14 +126,16 @@ class Trainer:
         return train_loss,val_loss,train_acc,val_acc
     
     
-    def _log_metrics(self,train_loss,val_loss,train_acc,val_acc,seen_tokens):
+    def _log_metrics_epoch(self,train_loss,val_loss,train_acc,val_acc,seen_tokens):
+        """Log aggregated metrics at the end of each epoch."""
         wandb.log({
-            "train loss": round(train_loss,4),
-            "val loss": round(val_loss,4),
-            "train acc": round(train_acc,4),
-            "val acc": round(val_acc,4),
-            "seen tokens": seen_tokens # diff 2 
+            "train/loss_epoch": round(train_loss,4),
+            "train/acc_epoch": round(train_acc,4),
+            "val/loss_epoch": round(val_loss,4),
+            "val/acc_epoch": round(val_acc,4),
+            "global_step": self.global_step
         })
+
 
 
     def train(self):
@@ -135,12 +146,16 @@ class Trainer:
         
         for epoch in epoch_pbar:
             logging.info(f"Epoch {epoch+1}/{self.config['epochs']} - Training ...")
+
             train_loss,val_loss,train_acc,val_acc = self._run_epoch()
+
             self.history["train_loss"].append(train_loss)
             self.history["train_acc"].append(train_acc)
             self.history["val_loss"].append(val_loss)
             self.history["val_acc"].append(val_acc)
-            self._log_metrics(train_loss,val_loss,train_acc,val_acc,self.seen_tokens)
+
+            # Epoch Level Logging 
+            self._log_metrics_epoch(train_loss,val_loss,train_acc,val_acc,self.seen_tokens)
             
             # Update progress bar with current metrics
             epoch_pbar.set_postfix({
@@ -151,8 +166,13 @@ class Trainer:
             })
 
             
-            logging.info(f"Epoch {epoch+1}/{self.config['epochs']} | Train loss: {train_loss:.4f} | Train acc: {train_acc:.4f} | Val loss: {val_loss:.4f}  | Val acc: {val_acc:.4f}")
+            logging.info(
+                f"Epoch {epoch+1}/{self.config['epochs']} | "
+                f"Train loss: {train_loss:.4f} | Train acc: {train_acc:.4f} | "
+                f"Val loss: {val_loss:.4f}  | Val acc: {val_acc:.4f}"
+                )
 
+            # Sample Text Generation
             if self.generate_text_config["input_text"] :
                 text_generation = TextGeneration(
                     model = self.model,
@@ -164,10 +184,15 @@ class Trainer:
                     )
                 input_text,output_text = text_generation.chat(
                     input_text= self.generate_text_config["input_text"],
-
                 )
                 
+
                 logging.info(f"Input Text: {input_text}\nOutput Text: {output_text}")
+                wandb.log({
+                    "samples/input_text": input_text,
+                    "samples/output_text": output_text,
+                    "global_step": self.global_step,
+                })
 
         duration = time.time() - start_time
         logging.info(f'Total Training Duration : {duration:.4f}')

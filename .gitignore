@@ -8,10 +8,10 @@ raw_data/
 .env
 wandb/
 .pytest_cache/
-TODO
 *.pth
 *.pt
 sft_model.pth
 .chainlit
 chainlit.md
 extras
+runs.txt
