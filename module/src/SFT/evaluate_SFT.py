@@ -5,6 +5,8 @@ import tiktoken
 import torch
 import wandb
 import logging
+from pathlib import Path
+
 
 from processing_data.dataset import InstructionDataset
 from processing_data.dataloader import get_data_loader,instruction_collate_fn
@@ -23,8 +25,15 @@ logger = logging.getLogger(__name__)
 with open('config.yaml', 'r') as f:
     config = yaml.safe_load(f)
 
-with open("raw_data/instruction-examples.json","r") as f:
+
+script_dir = Path(__file__).parent
+json_file_path = script_dir / "instruction-examples.json"
+
+with open(json_file_path, "r") as f:
     data = json.load(f)
+
+# with open("instruction-examples.json","r") as f:
+#     data = json.load(f)
 
 
 tokenizer = tiktoken.get_encoding("gpt2")
@@ -52,7 +61,7 @@ test_dl = get_data_loader(
 
 
 model = GPT2Model(config)
-loaded_weights = torch.load('sft_model.pth')
+loaded_weights = torch.load('best_model_val_loss.pth')
 model.load_state_dict(loaded_weights)
 
 evaluator = Evaluator(
@@ -60,7 +69,7 @@ evaluator = Evaluator(
     test_dl = test_dl,
     loss_fn = cross_entropy,
     accuracy_fn = accuracy,
-    device = 'cpu'
+    device = 'cuda'
     )
 
 

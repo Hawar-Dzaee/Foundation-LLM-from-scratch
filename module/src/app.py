@@ -14,7 +14,7 @@ with open("config.yaml",'r') as f :
     config = yaml.safe_load(f)
 
 model = GPT2Model(config)
-model_weights = torch.load("sft_model.pth")
+model_weights = torch.load("best_model_val_loss.pth")
 model.load_state_dict(model_weights)
 
 
@@ -22,7 +22,7 @@ model.load_state_dict(model_weights)
 async def main(message:chainlit.Message):
     text_generation = TextGeneration(
         model = model, 
-        device= "cpu",
+        device= "cuda" if torch.cuda.is_available() else "cpu",
         top_k= 4,
         temperature= 1.0,
         look_back= 100,

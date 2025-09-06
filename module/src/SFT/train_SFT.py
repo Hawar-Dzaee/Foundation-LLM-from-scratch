@@ -5,6 +5,8 @@ import tiktoken
 import torch
 import wandb
 import logging
+from pathlib import Path
+
 
 from processing_data.dataset import InstructionDataset
 from processing_data.dataloader import get_data_loader,instruction_collate_fn
@@ -22,8 +24,15 @@ logger = logging.getLogger(__name__)
 
 tokenizer = tiktoken.get_encoding("gpt2")
 
-with open("raw_data/instruction-examples.json","r") as f:
+
+script_dir = Path(__file__).parent
+json_file_path = script_dir / "instruction-examples.json"
+
+with open(json_file_path, "r") as f:
     data = json.load(f)
+
+# with open("instruction-examples.json","r") as f:
+#     data = json.load(f)
 
 train_index = int(len(data) * 0.8)
 val_index = int(len(data) * 0.1)
@@ -70,7 +79,7 @@ val_dl = get_data_loader(
 
 
 model = GPT2Model(config)
-loaded_weights = torch.load('model.pth')
+loaded_weights = torch.load('best_model_val_loss.pth')
 model.load_state_dict(loaded_weights)
 optimizer = torch.optim.AdamW(model.parameters(),lr=0.0004)
 
@@ -86,14 +95,13 @@ trainer = Trainer(
     accuracy_fn=accuracy,
     optimizer=optimizer,
     config=config,
-    device="cpu",
     generate_text_config=chat_config
 )
 
 if __name__ == "__main__":
     wandb.init(
     project="Foundation_models",
-    name="SFT adding inference file",
+    name="SFT on GPU",
     config=config
 )
     trainer.train()

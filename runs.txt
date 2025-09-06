@@ -1,0 +1,14 @@
+1- Pretraining
+
+python -m pretraining.train_gpt2_stories
+python -m pretraining.evaluate_gpt2_stories
+
+
+2- SFT 
+
+python -m SFT.train_SFT
+python -m SFT.evaluate_SFT
+
+3- chainlit 
+
+chainlit run app.py 
