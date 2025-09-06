@@ -1,0 +1,18 @@
+1- installing uv 
+
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+
+2 - create a virtual env 
+
+uv venv
+
+
+3 - sync 
+
+uv sync 
+
+
+4- github setup
+git config --global user.name "Hawar Dizayee"
+git config --global user.email "Hawardizayee@gmail.com"
