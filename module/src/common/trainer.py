@@ -38,6 +38,7 @@ class Trainer:
         self.device = config['device']
         self.generate_text_config = generate_text_config
         self.overfit_single_batch = overfit_single_batch
+
         self.seen_tokens = 0
         self.global_step = 0
 
@@ -105,6 +106,9 @@ class Trainer:
                     torch.save(self.model.state_dict(), f'best_model_train_loss.pth')
                     logging.info(f"New best model saved! Train loss: {loss:.4f}")
 
+            if self.overfit_single_batch:
+                break
+
         train_loss /= num_train_batches
         train_acc /= num_train_batches
 
@@ -128,6 +132,9 @@ class Trainer:
                 torch.save(self.model.state_dict(), f'best_model_val_loss.pth')
                 logging.info(f"New best model saved! Val loss: {loss:.4f}")
 
+            if self.overfit_single_batch:
+                break
+
         val_loss /= num_val_batches
         val_acc /= num_val_batches
         
@@ -149,7 +156,6 @@ class Trainer:
     def train(self):
         start_time = time.time()
         
-        # Create a single progress bar for epochs
         epoch_pbar = tqdm(range(self.config["epochs"]), desc="Training Epochs", unit="epoch")
         
         for epoch in epoch_pbar:
@@ -202,6 +208,8 @@ class Trainer:
                     "samples/output_text": output_text,
                     "global_step": self.global_step,
                 })
+
+            logging.info("="*100)
 
         duration = time.time() - start_time
         logging.info(f'Total Training Duration : {duration:.4f}')

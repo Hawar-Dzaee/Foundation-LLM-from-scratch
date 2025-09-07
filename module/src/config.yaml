@@ -36,5 +36,5 @@ learning_rate: 0.0004
 
 # training
 epochs: 2
-log_ever_n_batches: 30
+log_ever_n_batches: 50
 

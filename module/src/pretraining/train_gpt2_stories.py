@@ -84,7 +84,7 @@ trainer = Trainer(
     optimizer=optimizer,
     config=config,
     generate_text_config=generate_text_config,
-    overfit_single_batch= True
+    overfit_single_batch= False
 )
 
 if __name__ == "__main__":
