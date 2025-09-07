@@ -9,10 +9,7 @@ from torch.utils.data import Dataset
 import pandas as pd
 import tiktoken
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-)
+
 logger = logging.getLogger(__name__)
 
 # Text corpus 

@@ -6,10 +6,6 @@ from tqdm import tqdm
 from common.inference import TextGeneration
 
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-)
 logger = logging.getLogger(__name__)
 
 
@@ -58,7 +54,8 @@ class Trainer:
         inputs, targets = inputs.to(self.device), targets.to(self.device)
         logits = self.model(inputs)
         loss = self.loss_fn(logits, targets)
-        acc = self.accuracy_fn(logits,targets) #accuracy of the batch
+        # import code; code.interact(local=locals())
+        acc = self.accuracy_fn(logits,targets) 
         self.seen_tokens += inputs.numel() # diff 1 
         self.optimizer.zero_grad()
         loss.backward()
@@ -83,10 +80,14 @@ class Trainer:
 
         best_train_loss = float('inf')
         for batch_idx,batch in enumerate(self.train_dl):
+            start_time = time.time()
             loss,acc = self._run_batch_train(batch)
             train_loss += loss
             train_acc += acc
             self.global_step += 1 
+
+            end_time = time.time()
+            print(f"Batch durantion : {end_time-start_time}")
 
             # Step level- logging 
             if (batch_idx + 1) % self.log_ever_n_batches == 0:
@@ -159,6 +160,8 @@ class Trainer:
         epoch_pbar = tqdm(range(self.config["epochs"]), desc="Training Epochs", unit="epoch")
         
         for epoch in epoch_pbar:
+            torch.cuda.synchronize()
+            epoch_start_time = time.time()
             logging.info(f"Epoch {epoch+1}/{self.config['epochs']} - Training ...")
 
             train_loss,train_acc = self._run_epoch_train()
@@ -180,12 +183,27 @@ class Trainer:
                 "val_acc": f"{val_acc:.4f}"
             })
 
+            torch.cuda.synchronize()
+            epoch_duration = time.time() - epoch_start_time
+            formatted_epoch_time = time.strftime("%H:%M:%S", time.gmtime(epoch_duration))
+
             
             logging.info(
                 f"Epoch {epoch+1}/{self.config['epochs']} | "
                 f"Train loss: {train_loss:.4f} | Train acc: {train_acc:.4f} | "
-                f"Val loss: {val_loss:.4f}  | Val acc: {val_acc:.4f}"
+                f"Val loss: {val_loss:.4f}  | Val acc: {val_acc:.4f} | "
+                f"Epoch time: {formatted_epoch_time} ({epoch_duration:.2f} sec)"
                 )
+
+            wandb.log({
+                "epoch_time_seconds": epoch_duration,
+                "epoch": epoch + 1,
+                "train_loss": train_loss,
+                "val_loss": val_loss,
+                "train_acc": train_acc,
+                "val_acc": val_acc,
+                "global_step": self.global_step,
+            })
 
             # Sample Text Generation
             if self.generate_text_config["input_text"] :
@@ -212,7 +230,9 @@ class Trainer:
             logging.info("="*100)
 
         duration = time.time() - start_time
-        logging.info(f'Total Training Duration : {duration:.4f}')
+        formatted_total_time = time.strftime("%H:%M:%S", time.gmtime(duration))
+        logging.info(f"Total Training Duration : {formatted_total_time} ({duration:.2f} sec)")
+        wandb.log({"total_training_time_seconds": duration})
 
         return self.history
 

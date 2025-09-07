@@ -1,6 +1,8 @@
 1- Pretraining
 
 python -m pretraining.train_gpt2_stories
+WANDB_MODE=disabled python -m pretraining.train_gpt2_stories # running without wandb
+
 python -m pretraining.evaluate_gpt2_stories
 
 

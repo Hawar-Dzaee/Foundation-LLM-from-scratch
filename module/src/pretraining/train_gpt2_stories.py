@@ -12,6 +12,14 @@ from model_components.gpt2 import GPT2Model
 from common.metrics import cross_entropy,accuracy
 from common.trainer import Trainer
 
+
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+)
+logger = logging.getLogger(__name__)
+
 with open("config.yaml","r") as f:
     config = yaml.safe_load(f)
 
@@ -89,10 +97,10 @@ trainer = Trainer(
 
 if __name__ == "__main__":
     wandb.init(
-    project="Foundation_models",
-    name="Separate epoch runs for train and validaiton",
-    config=config
-)
+        project="Foundation_models",
+        name="time epoch runs",
+        config=config
+    )
     trainer.train()
     wandb.finish()
     torch.save(model.state_dict(), 'final_model.pth')
