@@ -24,7 +24,8 @@ class Trainer:
         accuracy_fn,
         optimizer,
         config,
-        generate_text_config
+        generate_text_config,
+        overfit_single_batch=False
     ):
 
         self.model = model
@@ -36,6 +37,7 @@ class Trainer:
         self.config = config
         self.device = config['device']
         self.generate_text_config = generate_text_config
+        self.overfit_single_batch = overfit_single_batch
         self.seen_tokens = 0
         self.global_step = 0
 
@@ -53,6 +55,8 @@ class Trainer:
         self.model = self.model.to(self.device)
         inputs, targets = batch
         inputs, targets = inputs.to(self.device), targets.to(self.device)
+        print(f'Inputs : {inputs}')
+        print(f'Targets : {targets}')
         logits = self.model(inputs)
         loss = self.loss_fn(logits, targets)
         acc = self.accuracy_fn(logits,targets) #accuracy of the batch
@@ -103,6 +107,9 @@ class Trainer:
                     best_train_loss = loss
                     torch.save(self.model.state_dict(), f'best_model_train_loss.pth')
                     logging.info(f"New best model saved! Train loss: {loss:.4f}")
+
+            if self.overfit_single_batch:
+                break
 
         train_loss /= num_train_batches
         train_acc /= num_train_batches

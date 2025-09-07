@@ -83,7 +83,8 @@ trainer = Trainer(
     accuracy_fn=accuracy,
     optimizer=optimizer,
     config=config,
-    generate_text_config=generate_text_config
+    generate_text_config=generate_text_config,
+    overfit_single_batch= True
 )
 
 if __name__ == "__main__":

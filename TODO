@@ -1,9 +1,1 @@
-- better plot, using batche(s) data (every 30 batches)
-so the x-axis must have num batch and num epoch. 
-just plotting at point of epoch can be misleading. 
-
-
-- make loading models into a funciton (and maybe put it in utils.py), instead of just hanging out there
-
-
-- implement text generation on evaluation. 
+- overfit on a single batch 
