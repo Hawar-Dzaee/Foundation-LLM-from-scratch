@@ -55,8 +55,6 @@ class Trainer:
         self.model = self.model.to(self.device)
         inputs, targets = batch
         inputs, targets = inputs.to(self.device), targets.to(self.device)
-        print(f'Inputs : {inputs}')
-        print(f'Targets : {targets}')
         logits = self.model(inputs)
         loss = self.loss_fn(logits, targets)
         acc = self.accuracy_fn(logits,targets) #accuracy of the batch
@@ -77,18 +75,17 @@ class Trainer:
             return loss.item(),acc.item()
 
     
-    def _run_epoch(self):
+    def _run_epoch_train(self):
         num_train_batches = len(self.train_dl)
-        num_val_batches = len(self.val_dl)
-        train_loss,val_loss = 0,0
-        train_acc,val_acc = 0,0 
+        train_loss = 0
+        train_acc = 0
 
         best_train_loss = float('inf')
         for batch_idx,batch in enumerate(self.train_dl):
             loss,acc = self._run_batch_train(batch)
             train_loss += loss
             train_acc += acc
-            self.global_step += 1 # NEW 
+            self.global_step += 1 
 
             # Step level- logging 
             if (batch_idx + 1) % self.log_ever_n_batches == 0:
@@ -108,12 +105,16 @@ class Trainer:
                     torch.save(self.model.state_dict(), f'best_model_train_loss.pth')
                     logging.info(f"New best model saved! Train loss: {loss:.4f}")
 
-            if self.overfit_single_batch:
-                break
-
         train_loss /= num_train_batches
         train_acc /= num_train_batches
 
+        return train_loss,train_acc
+
+
+    def _run_epoch_val(self):
+        num_val_batches = len(self.val_dl)
+        val_loss = 0
+        val_acc = 0
 
         best_val_loss = float('inf')
         best_val_acc = 0
@@ -130,7 +131,7 @@ class Trainer:
         val_loss /= num_val_batches
         val_acc /= num_val_batches
         
-        return train_loss,val_loss,train_acc,val_acc
+        return val_loss,val_acc
     
     
     def _log_metrics_epoch(self,train_loss,val_loss,train_acc,val_acc,seen_tokens):
@@ -154,7 +155,8 @@ class Trainer:
         for epoch in epoch_pbar:
             logging.info(f"Epoch {epoch+1}/{self.config['epochs']} - Training ...")
 
-            train_loss,val_loss,train_acc,val_acc = self._run_epoch()
+            train_loss,train_acc = self._run_epoch_train()
+            val_loss,val_acc = self._run_epoch_val()
 
             self.history["train_loss"].append(train_loss)
             self.history["train_acc"].append(train_acc)

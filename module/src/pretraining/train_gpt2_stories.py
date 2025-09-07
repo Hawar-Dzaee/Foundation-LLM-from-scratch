@@ -90,7 +90,7 @@ trainer = Trainer(
 if __name__ == "__main__":
     wandb.init(
     project="Foundation_models",
-    name="alternative batching/Epoch logging",
+    name="Separate epoch runs for train and validaiton",
     config=config
 )
     trainer.train()
