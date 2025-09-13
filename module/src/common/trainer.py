@@ -49,15 +49,18 @@ class Trainer:
 
     def _run_batch_train(self, batch):
         self.model.train()
+        self.optimizer.zero_grad()
         self.model = self.model.to(self.device)
         inputs, targets = batch
         inputs, targets = inputs.to(self.device), targets.to(self.device)
-        logits = self.model(inputs)
-        loss = self.loss_fn(logits, targets)
-        # import code; code.interact(local=locals())
+
+        with torch.autocast(device_type = self.device,dtype = torch.bfloat16):
+            logits = self.model(inputs)
+            loss = self.loss_fn(logits, targets)
+            # import code; code.interact(local=locals())
+            
         acc = self.accuracy_fn(logits,targets) 
         self.seen_tokens += inputs.numel() # diff 1 
-        self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
         return loss.item(),acc.item()
@@ -80,14 +83,14 @@ class Trainer:
 
         best_train_loss = float('inf')
         for batch_idx,batch in enumerate(self.train_dl):
-            start_time = time.time()
+            start_time = time.time()    # returns seconds 
             loss,acc = self._run_batch_train(batch)
             train_loss += loss
             train_acc += acc
             self.global_step += 1 
 
-            end_time = time.time()
-            print(f"Batch durantion : {end_time-start_time}")
+            end_time = time.time()  
+            print(f"Batch durantion : {(end_time-start_time)*1000 :.3f} ms")
 
             # Step level- logging 
             if (batch_idx + 1) % self.log_ever_n_batches == 0:

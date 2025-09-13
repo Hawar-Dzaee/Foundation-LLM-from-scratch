@@ -6,11 +6,17 @@ import logging
 
 from datasets import load_dataset
 
+torch.set_float32_matmul_precision("high")  # Must come before importing any local modules 
+
+
 from processing_data.dataset import TinyStoryData
 from processing_data.dataloader import get_data_loader,tiny_story_collate
 from model_components.gpt2 import GPT2Model
 from common.metrics import cross_entropy,accuracy
 from common.trainer import Trainer
+
+
+# torch.set_float32_matmul_precision("high")  # position 2 : No difference with Postion 1 (P2 was 2 seconds faster than P1 :negligble)
 
 
 
@@ -64,6 +70,9 @@ val_dl = get_data_loader(
 
 
 model = GPT2Model(config)
+model = torch.compile(model)
+
+
 import os
 
 # Check if a best model checkpoint exists and load it
@@ -98,7 +107,7 @@ trainer = Trainer(
 if __name__ == "__main__":
     wandb.init(
         project="Foundation_models",
-        name="time epoch runs",
+        name="compile & autocast bfloat16 & set_float32_matmul_precision('high')",
         config=config
     )
     trainer.train()
