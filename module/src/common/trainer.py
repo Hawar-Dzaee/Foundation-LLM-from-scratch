@@ -54,9 +54,9 @@ class Trainer:
         inputs, targets = batch
         inputs, targets = inputs.to(self.device), targets.to(self.device)
 
-        with torch.autocast(device_type = self.device,dtype = torch.bfloat16):
-            logits = self.model(inputs)
-            loss = self.loss_fn(logits, targets)
+        # with torch.autocast(device_type = self.device,dtype = torch.bfloat16):
+        logits = self.model(inputs)
+        loss = self.loss_fn(logits, targets)
             # import code; code.interact(local=locals())
             
         acc = self.accuracy_fn(logits,targets) 

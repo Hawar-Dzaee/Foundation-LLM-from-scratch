@@ -6,7 +6,7 @@ import logging
 
 from datasets import load_dataset
 
-torch.set_float32_matmul_precision("high")  # Must come before importing any local modules 
+# torch.set_float32_matmul_precision("high")  # Must come before importing any local modules 
 
 
 from processing_data.dataset import TinyStoryData
@@ -70,7 +70,7 @@ val_dl = get_data_loader(
 
 
 model = GPT2Model(config)
-model = torch.compile(model)
+# model = torch.compile(model)
 
 
 import os
@@ -107,7 +107,7 @@ trainer = Trainer(
 if __name__ == "__main__":
     wandb.init(
         project="Foundation_models",
-        name="compile & autocast bfloat16 & set_float32_matmul_precision('high')",
+        name="mha from scratch",
         config=config
     )
     trainer.train()
