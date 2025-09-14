@@ -54,14 +54,18 @@ class Trainer:
         inputs, targets = batch
         inputs, targets = inputs.to(self.device), targets.to(self.device)
 
-        # with torch.autocast(device_type = self.device,dtype = torch.bfloat16):
-        logits = self.model(inputs)
-        loss = self.loss_fn(logits, targets)
+        with torch.autocast(device_type = self.device,dtype = torch.bfloat16):
+            logits = self.model(inputs)
+            loss = self.loss_fn(logits, targets)
             # import code; code.interact(local=locals())
             
         acc = self.accuracy_fn(logits,targets) 
         self.seen_tokens += inputs.numel() # diff 1 
         loss.backward()
+
+        norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(),1.0)
+        print(f'Norm : {norm:.4f}')
+
         self.optimizer.step()
         return loss.item(),acc.item()
     

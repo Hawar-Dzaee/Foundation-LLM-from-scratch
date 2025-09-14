@@ -16,3 +16,5 @@ the evalute_gpt2.py saves ...
 - torch.set_float32_matmul_precision("high")  (at the top of your script )
 - with torch.autocast(device="cuda",dtype=torch.bfloat16) that contexts logits and loss 
 - you should be using torch.compile(model) by default (unless you are debugging otherwise there is no reason not to use it)
+- implementing Flash Attention `F.scaled_dot_product()`
+- changing "Ugly Numbers" to "Pretty Numbers" e.g. vocab_size 50257 --> 50304 

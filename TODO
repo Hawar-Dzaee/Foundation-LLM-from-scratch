@@ -1,3 +1,7 @@
 - How to resume Training 
 
 - How to calucate token throughput 
+
+- cosine for learning scheduler 
+
+- how does torch.nn.utils._grad_norm_() work ? 

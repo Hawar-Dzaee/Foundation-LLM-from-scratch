@@ -6,7 +6,7 @@ import logging
 
 from datasets import load_dataset
 
-# torch.set_float32_matmul_precision("high")  # Must come before importing any local modules 
+torch.set_float32_matmul_precision("high")  # Must come before importing any local modules [says GPT ]
 
 
 from processing_data.dataset import TinyStoryData
@@ -70,23 +70,24 @@ val_dl = get_data_loader(
 
 
 model = GPT2Model(config)
-# model = torch.compile(model)
-
 
 import os
 
 # Check if a best model checkpoint exists and load it
-best_model_path = "best_model_train_loss.pth"
-if os.path.exists(best_model_path):
-    model.load_state_dict(torch.load(best_model_path,weights_only=True, map_location=config.get("device", "cpu")))
-    logging.info(f"Loaded best model from {best_model_path}")
-else:
-    logging.info("No best model checkpoint found. Training from scratch.")
+# best_model_path = "best_model_train_loss.pth"
+# if os.path.exists(best_model_path):
+#     model.load_state_dict(torch.load(best_model_path,weights_only=True, map_location=config.get("device", "cpu")))
+#     logging.info(f"Loaded best model from {best_model_path}")
+# else:
+#     logging.info("No best model checkpoint found. Training from scratch.")
+
+
+model = torch.compile(model)
 
 num_parameters = sum(p.numel() for p in model.parameters())
 logging.info(f"Number of parameters: {num_parameters:,}")
 
-optimizer = torch.optim.AdamW(model.parameters(),lr=config["learning_rate"])
+optimizer = torch.optim.AdamW(model.parameters(),lr=config["learning_rate"],betas = (0.9,0.95),eps=1e-8)
 
 
 
@@ -107,7 +108,7 @@ trainer = Trainer(
 if __name__ == "__main__":
     wandb.init(
         project="Foundation_models",
-        name="mha from scratch",
+        name="Global Gradient Clipping",
         config=config
     )
     trainer.train()

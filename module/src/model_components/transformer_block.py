@@ -1,5 +1,6 @@
 import torch 
 from torch import nn 
+import torch.nn.functional as F 
 
 
 class TransformerBlock(nn.Module):
@@ -32,7 +33,7 @@ class TransformerBlock(nn.Module):
 
        shortcut = x
        x = self.ln1(x)
-       x,_ = self.mha(x)
+       x = self.mha(x)
         #    attn_mask= torch.triu(torch.ones(num_tokens,num_tokens,device=x.device),diagonal=1).bool())
        x = self.dp1(x)
 
@@ -75,7 +76,7 @@ class MultiheadAttention(nn.Module):
 
 
     # Miscellaneous
-    self.register_buffer('mask',torch.triu(torch.ones(context_window,context_window),diagonal=1))
+    # self.register_buffer('mask',torch.triu(torch.ones(context_window,context_window),diagonal=1))
     self.dropout = nn.Dropout(dropout)
 
     
@@ -98,13 +99,14 @@ class MultiheadAttention(nn.Module):
     V = V.view(B_v,num_token_v,self.num_heads,self.head_dim).transpose(1,2)
 
     # QK,mask,softmax,dropout
-    attn_score = Q @ K.transpose(2,3)
-    attn_score.masked_fill_(self.mask.bool()[:num_token_q,:num_token_k],-torch.inf)
-    attn_weight = torch.softmax(attn_score/K.shape[-1]**0.5,dim=-1)
-    attn_weight = self.dropout(attn_weight)
+    # attn_score = Q @ K.transpose(2,3)
+    # attn_score.masked_fill_(self.mask.bool()[:num_token_q,:num_token_k],-torch.inf)
+    # attn_weight = torch.softmax(attn_score/K.shape[-1]**0.5,dim=-1)
+    # attn_weight = self.dropout(attn_weight)
+    # # context_vec
+    # context_vec = attn_weight @ V
 
-    # context_vec
-    context_vec = attn_weight @ V
+    context_vec = F.scaled_dot_product_attention(Q,K,V,is_causal = True)
 
     # Putting the heads back together 
     context_vec = context_vec.transpose(1,2).contiguous().view(B_q,num_token_q,self.embed_dim)    # it doesn't matter which (B) you choose
@@ -112,4 +114,4 @@ class MultiheadAttention(nn.Module):
     # projection 
     context_vec = self.out_proj(context_vec)
 
-    return context_vec,attn_weight
+    return context_vec  # The original nn.Multihead attention also returns attn_weight

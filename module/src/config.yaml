@@ -29,10 +29,10 @@ device: "cuda"
 n_layers: 12
 
 # num_classes 
-num_classes: 50257 # for next token prediction must equal vocab_size, for classification must be the number of classes you have.
+num_classes: 50304    #Originally  50257 (Since it is an "ugly Number" we change it with next(i.e. Higher) pretty Number)
 
 # optimizer
-learning_rate: 0.0004
+learning_rate: 0.0003
 
 # training
 epochs: 1
