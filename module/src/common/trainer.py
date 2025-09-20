@@ -4,11 +4,40 @@ import wandb
 import torch
 from tqdm import tqdm
 from common.inference import TextGeneration
+from torch.nn.parallel import DistributedDataParallel as DDP
 
 
 logger = logging.getLogger(__name__)
 
+def ddp_setup(rank, world_size):
+    """
+    Arguments:
+        rank: a unique process ID
+        world_size: total number of processes in the group
+    """
+    # Only set MASTER_ADDR and MASTER_PORT if not already defined by torchrun
+    if "MASTER_ADDR" not in os.environ:
+        os.environ["MASTER_ADDR"] = "localhost"
+    if "MASTER_PORT" not in os.environ:
+        os.environ["MASTER_PORT"] = "12345"
 
+    # initialize process group
+    if platform.system() == "Windows":
+        # Disable libuv because PyTorch for Windows isn't built with support
+        os.environ["USE_LIBUV"] = "0"
+        # Windows users may have to use "gloo" instead of "nccl" as backend
+        # gloo: Facebook Collective Communication Library
+        dist.init_process_group(backend="gloo", rank=rank, world_size=world_size)
+    else:
+        # nccl: NVIDIA Collective Communication Library
+        dist.init_process_group(backend="nccl", rank=rank, world_size=world_size)
+
+    torch.cuda.set_device(rank)
+
+def ddp_cleanup():
+    """Clean up the process group"""
+    if dist.is_initialized():
+        dist.destroy_process_group()
 
 class Trainer:
     def __init__(
@@ -21,7 +50,9 @@ class Trainer:
         optimizer,
         config,
         generate_text_config,
-        overfit_single_batch=False
+        overfit_single_batch=False,
+        rank = None,
+        world_size = None 
     ):
 
         self.model = model
@@ -35,6 +66,12 @@ class Trainer:
         self.generate_text_config = generate_text_config
         self.overfit_single_batch = overfit_single_batch
 
+        # DDP-related attributes 
+        self.rank = rank 
+        self.world_size = world_size
+        self.is_ddp = rank is not None and world_size is not None 
+        self.is_main_process = not self.is_ddp or rank == 0 
+
         self.seen_tokens = 0
         self.global_step = 0
 
@@ -46,11 +83,25 @@ class Trainer:
         }
         self.log_ever_n_batches = config['log_ever_n_batches']
 
+        # Initialize DDP if running in distributed mode
+        if self.is_ddp:
+            ddp_setup(rank, world_size)
+            self.model = self.model.to(self.device)
+            self.model = DDP(self.model, device_ids=[rank])
+            
+            # Only initialize wandb on main process
+            if self.is_main_process and wandb.run is None:
+                # wandb.init() should be called here if not already done
+                pass
+        else:
+            self.model = self.model.to(self.device)
+
 
     def _run_batch_train(self, batch):
         self.model.train()
         self.optimizer.zero_grad()
-        self.model = self.model.to(self.device)
+
+        # self.model = self.model.to(self.device)
         inputs, targets = batch
         inputs, targets = inputs.to(self.device), targets.to(self.device)
 
@@ -64,7 +115,7 @@ class Trainer:
         loss.backward()
 
         norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(),1.0)
-        print(f'Norm : {norm:.4f}')
+        # print(f'Norm : {norm:.4f}')   # Maybe we can log it later on ....
 
         self.optimizer.step()
         return loss.item(),acc.item()
@@ -86,6 +137,11 @@ class Trainer:
         train_acc = 0
 
         best_train_loss = float('inf')
+
+        # set epoch for DistributedSampler if using DDP 
+        if self.is_ddp and hasattr(self.train_dl.sampler, "set_epoch"): 
+            self.train_dl.sampler.set_epoch(self.current_epoch)
+
         for batch_idx,batch in enumerate(self.train_dl):
             start_time = time.time()    # returns seconds 
             loss,acc = self._run_batch_train(batch)
@@ -94,10 +150,12 @@ class Trainer:
             self.global_step += 1 
 
             end_time = time.time()  
-            print(f"Batch durantion : {(end_time-start_time)*1000 :.3f} ms")
 
-            # Step level- logging 
-            if (batch_idx + 1) % self.log_ever_n_batches == 0:
+            if self.is_main_process:
+                print(f"Batch durantion : {(end_time-start_time)*1000 :.3f} ms")
+
+            # Step level- logging - ONLY on main process 
+            if self.is_main_process and (batch_idx + 1) % self.log_ever_n_batches == 0:
                 logging.info(
                     f"Batch {batch_idx+1:04d}/{num_train_batches} | "
                     f"Train Batch loss: {loss:.4f} | Train Batch acc: {acc:.4f}"
@@ -111,11 +169,24 @@ class Trainer:
 
                 if loss < best_train_loss:
                     best_train_loss = loss
+                    # save model state dict properly for DDP 
+                    model_to_save = self.model.module if self.is_ddp else self.model 
                     torch.save(self.model.state_dict(), f'best_model_train_loss.pth')
                     logging.info(f"New best model saved! Train loss: {loss:.4f}")
 
             if self.overfit_single_batch:
                 break
+
+        # Sync metrics across all processes if using DDP 
+        if self.is_ddp : 
+            train_loss_tensor = torch.tensor(train_loss,device=self.device)
+            train_acc_tensor = torch.tensor(train_acc,device=self.device)
+
+            dist.all_reduce(train_loss_tensor,op=dist.ReduceOp.SUM)
+            dist.all_reduce(train_acc_tensor,op=dist.ReduceOp.SUM)
+
+            train_loss = train_loss_tensor.item()/ self.world_size
+            train_acc = train_acc_tensor.item()/ self.world_size
 
         train_loss /= num_train_batches
         train_acc /= num_train_batches
@@ -143,6 +214,16 @@ class Trainer:
             if self.overfit_single_batch:
                 break
 
+        if self.is_ddp:
+            val_loss_tensor = torch.tensor(val_loss, device=self.device)
+            val_acc_tensor = torch.tensor(val_acc, device=self.device)
+            
+            dist.all_reduce(val_loss_tensor, op=dist.ReduceOp.SUM)
+            dist.all_reduce(val_acc_tensor, op=dist.ReduceOp.SUM)
+            
+            val_loss = val_loss_tensor.item() / self.world_size
+            val_acc = val_acc_tensor.item() / self.world_size
+
         val_loss /= num_val_batches
         val_acc /= num_val_batches
         
@@ -164,12 +245,20 @@ class Trainer:
     def train(self):
         start_time = time.time()
         
-        epoch_pbar = tqdm(range(self.config["epochs"]), desc="Training Epochs", unit="epoch")
+        # Only show progress bar on main process
+        if self.is_main_process:
+            epoch_pbar = tqdm(range(self.config["epochs"]), desc="Training Epochs", unit="epoch")
+        else:
+            epoch_pbar = range(self.config["epochs"])
         
         for epoch in epoch_pbar:
+            self.current_epoch = epoch # Store current epoch for DistributedSampler 
+
             torch.cuda.synchronize()
             epoch_start_time = time.time()
-            logging.info(f"Epoch {epoch+1}/{self.config['epochs']} - Training ...")
+
+            if self.is_main_process:
+                logging.info(f"Epoch {epoch+1}/{self.config['epochs']} - Training ...")
 
             train_loss,train_acc = self._run_epoch_train()
             val_loss,val_acc = self._run_epoch_val()
@@ -180,40 +269,46 @@ class Trainer:
             self.history["val_acc"].append(val_acc)
 
             # Epoch Level Logging 
-            self._log_metrics_epoch(train_loss,val_loss,train_acc,val_acc,self.seen_tokens)
+            if self.is_main_process:
+                self._log_metrics_epoch(train_loss,val_loss,train_acc,val_acc,self.seen_tokens)
             
-            # Update progress bar with current metrics
-            epoch_pbar.set_postfix({
-                "train_loss": f"{train_loss:.4f}",
-                "val_loss": f"{val_loss:.4f}",
-                "train_acc": f"{train_acc:.4f}",
-                "val_acc": f"{val_acc:.4f}"
-            })
+                # Update progress bar with current metrics
+
+                if hasattr(epoch_pbar,"set_postfix"):
+                    epoch_pbar.set_postfix({
+                    "train_loss": f"{train_loss:.4f}",
+                    "val_loss": f"{val_loss:.4f}",
+                    "train_acc": f"{train_acc:.4f}",
+                    "val_acc": f"{val_acc:.4f}"
+                })
 
             torch.cuda.synchronize()
             epoch_duration = time.time() - epoch_start_time
             formatted_epoch_time = time.strftime("%H:%M:%S", time.gmtime(epoch_duration))
 
-            
-            logging.info(
-                f"Epoch {epoch+1}/{self.config['epochs']} | "
-                f"Train loss: {train_loss:.4f} | Train acc: {train_acc:.4f} | "
-                f"Val loss: {val_loss:.4f}  | Val acc: {val_acc:.4f} | "
-                f"Epoch time: {formatted_epoch_time} ({epoch_duration:.2f} sec)"
-                )
+            if self.is_main_process:
+                logging.info(
+                    f"Epoch {epoch+1}/{self.config['epochs']} | "
+                    f"Train loss: {train_loss:.4f} | Train acc: {train_acc:.4f} | "
+                    f"Val loss: {val_loss:.4f}  | Val acc: {val_acc:.4f} | "
+                    f"Epoch time: {formatted_epoch_time} ({epoch_duration:.2f} sec)"
+                    )
 
-            wandb.log({
-                "epoch_time_seconds": epoch_duration,
-                "epoch": epoch + 1,
-                "train_loss": train_loss,
-                "val_loss": val_loss,
-                "train_acc": train_acc,
-                "val_acc": val_acc,
-                "global_step": self.global_step,
-            })
+                wandb.log({
+                    "epoch_time_seconds": epoch_duration,
+                    "epoch": epoch + 1,
+                    "train_loss": train_loss,
+                    "val_loss": val_loss,
+                    "train_acc": train_acc,
+                    "val_acc": val_acc,
+                    "global_step": self.global_step,
+                })
 
             # Sample Text Generation
-            if self.generate_text_config["input_text"] :
+            if self.is_main_process and  self.generate_text_config["input_text"]:
+                # Use the underlying model for text generation not the DDP wrapper 
+                model_for_generation = self.model.module if self.is_ddp else self.model
+
                 text_generation = TextGeneration(
                     model = self.model,
                     top_k= self.generate_text_config["top_k"],
@@ -238,8 +333,14 @@ class Trainer:
 
         duration = time.time() - start_time
         formatted_total_time = time.strftime("%H:%M:%S", time.gmtime(duration))
-        logging.info(f"Total Training Duration : {formatted_total_time} ({duration:.2f} sec)")
-        wandb.log({"total_training_time_seconds": duration})
+
+        if self.is_main_process: 
+            logging.info(f"Total Training Duration : {formatted_total_time} ({duration:.2f} sec)")
+            wandb.log({"total_training_time_seconds": duration})
+
+        # Clean up DDP 
+        if self.is_ddp: 
+            ddp_cleanup()
 
         return self.history
 

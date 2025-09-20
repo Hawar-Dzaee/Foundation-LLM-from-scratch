@@ -1,12 +1,23 @@
+import os
+
 import yaml
 import tiktoken
 import torch
 import wandb
 import logging
 
-from datasets import load_dataset
 
 torch.set_float32_matmul_precision("high")  # Must come before importing any local modules [says GPT ]
+
+
+import platform 
+from torch.utils.data.distributed import DistributedSampler 
+from torch.distributed import init_process_group, destroy_process_group 
+
+
+
+
+from datasets import load_dataset
 
 
 from processing_data.dataset import TinyStoryData
@@ -54,9 +65,11 @@ train_dl = get_data_loader(
     train_dataset,
     batch_size=config["batch_size"],
     shuffle=config["shuffle"],
+    pin_memory = True ,
     drop_last=config["drop_last"],
-    num_workers=config["num_workers"],
-    collate_fn=tiny_story_collate
+    # num_workers=config["num_workers"],
+    collate_fn=tiny_story_collate,
+    sampler = DistributedSampler(train_dataset)
     )
 
 val_dl = get_data_loader(
@@ -64,25 +77,30 @@ val_dl = get_data_loader(
     batch_size=config["batch_size"],
     shuffle=config["shuffle"],
     drop_last=config["drop_last"],
-    num_workers=config["num_workers"],
+    # num_workers=config["num_workers"],
     collate_fn=tiny_story_collate
 )
 
 
 model = GPT2Model(config)
 
-import os
 
-# Check if a best model checkpoint exists and load it
-# best_model_path = "best_model_train_loss.pth"
-# if os.path.exists(best_model_path):
-#     model.load_state_dict(torch.load(best_model_path,weights_only=True, map_location=config.get("device", "cpu")))
-#     logging.info(f"Loaded best model from {best_model_path}")
-# else:
-#     logging.info("No best model checkpoint found. Training from scratch.")
+def main_ddp(
+    rank,
+    world_size,
+    config,
+    model,
+    train_dataset,
+    val_dataset,
+    loss_fn,
+    accuracy_fn,
+    optimizer,
+    generate_text_config
+):
+pass 
 
 
-model = torch.compile(model)
+# model = torch.compile(model)
 
 num_parameters = sum(p.numel() for p in model.parameters())
 logging.info(f"Number of parameters: {num_parameters:,}")
@@ -106,6 +124,28 @@ trainer = Trainer(
 )
 
 if __name__ == "__main__":
+
+
+    if "WORLD_SIZE" in os.environ : 
+        world_size = int(os.environ["WORLD_SIZE"])\
+    else : 
+        world_size = 1 
+
+    if "LOCAL_RANK" in os.environ: 
+        rank = int(os.environ["LOCAL_RANK"])
+    elif "RANK" in os.environ: 
+        rank = int(os.environ["RANK"])
+    else : 
+        rank = 0 
+
+
+    if rank == 0: 
+        print("Pytorch version:",torch.__version__)
+        print("CUDA available:", torch.cuda.is_available())
+        print("Number of GPUs available:",torch.cuda.device_count())
+
+    torch.manual_seed(123)
+
     wandb.init(
         project="Foundation_models",
         name="Global Gradient Clipping",
