@@ -2,6 +2,7 @@
 
 python -m pretraining.train_gpt2_stories
 WANDB_MODE=disabled python -m pretraining.train_gpt2_stories # running without wandb
+torchrun --nproc_per_node=4 -m pretraining.train_gpt2_stories       # Multiple GPUs 
 
 python -m pretraining.evaluate_gpt2_stories
 
@@ -14,3 +15,7 @@ python -m SFT.evaluate_SFT
 3- chainlit 
 
 chainlit run app.py 
+
+
+#====================
+watch -n 1 nvidia-smi           # watching gpus 

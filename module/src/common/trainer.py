@@ -5,6 +5,9 @@ import torch
 from tqdm import tqdm
 from common.inference import TextGeneration
 from torch.nn.parallel import DistributedDataParallel as DDP
+import torch.distributed as dist
+import os 
+import platform
 
 
 logger = logging.getLogger(__name__)
@@ -93,6 +96,16 @@ class Trainer:
             if self.is_main_process and wandb.run is None:
                 # wandb.init() should be called here if not already done
                 pass
+
+        elif dist.is_initialized():
+            # Process group already initialized externally
+            self.rank = dist.get_rank()
+            self.world_size = dist.get_world_size()
+            self.is_ddp = True
+            self.is_main_process = self.rank == 0
+            
+            self.model = self.model.to(self.device)
+            self.model = DDP(self.model, device_ids=[int(os.environ.get('LOCAL_RANK', 0))])
         else:
             self.model = self.model.to(self.device)
 
