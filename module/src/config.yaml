@@ -8,10 +8,10 @@ embed_dim: 768
 stride: 256
 
 # DATALOADER
-batch_size: 32
+batch_size: 96
 shuffle: False
 drop_last: True
-num_workers: 0
+num_workers: 4
 
 # POSITIONAL ENCODING
 # Durning training, num_tokens == context_window

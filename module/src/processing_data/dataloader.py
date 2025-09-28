@@ -3,14 +3,15 @@ from torch.utils.data import DataLoader
 from torch.nn.utils.rnn import pad_sequence
 
 
-def get_data_loader(dataset,batch_size,shuffle,drop_last,num_workers=0,collate_fn=None): 
+def get_data_loader(dataset,batch_size,shuffle,drop_last,num_workers=0,collate_fn=None,pin_memory=False): 
     return DataLoader(
         dataset,
         batch_size=batch_size,
         shuffle=shuffle,
         drop_last=drop_last,
         num_workers=num_workers,
-        collate_fn=collate_fn
+        collate_fn=collate_fn,
+        pin_memory = pin_memory 
         )
 
 

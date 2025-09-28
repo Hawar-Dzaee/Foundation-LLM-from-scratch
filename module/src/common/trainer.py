@@ -50,7 +50,6 @@ class Trainer:
     def _run_batch_train(self, batch):
         self.model.train()
         self.optimizer.zero_grad()
-        self.model = self.model.to(self.device)
         inputs, targets = batch
         inputs, targets = inputs.to(self.device), targets.to(self.device)
 
@@ -64,7 +63,7 @@ class Trainer:
         loss.backward()
 
         norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(),1.0)
-        print(f'Norm : {norm:.4f}')
+        # print(f'Norm : {norm:.4f}')
 
         self.optimizer.step()
         return loss.item(),acc.item()

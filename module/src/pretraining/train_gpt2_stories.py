@@ -1,8 +1,9 @@
+import os
 import yaml
 import tiktoken
-import torch
 import wandb
 import logging
+import torch 
 
 from datasets import load_dataset
 
@@ -36,7 +37,7 @@ with open("generate_text_config.yaml","r") as f:
 
 
 train_dataset = TinyStoryData(
-    dataset= load_dataset("roneneldan/TinyStories", split="train[:1%]"),
+    dataset= load_dataset("roneneldan/TinyStories", split="train[:2%]"),
     tokenizer=tiktoken.get_encoding("gpt2"),
     cache_file = "processed_data_train.pt",
     max_length= config["context_window"],
@@ -44,7 +45,7 @@ train_dataset = TinyStoryData(
 )
 
 val_dataset = TinyStoryData(
-    dataset= load_dataset("roneneldan/TinyStories", split="train[99%:]"),
+    dataset= load_dataset("roneneldan/TinyStories", split="train[98%:]"),
     tokenizer=tiktoken.get_encoding("gpt2"),
     cache_file = "processed_data_valid.pt",
     max_length= config["context_window"]
@@ -56,7 +57,8 @@ train_dl = get_data_loader(
     shuffle=config["shuffle"],
     drop_last=config["drop_last"],
     num_workers=config["num_workers"],
-    collate_fn=tiny_story_collate
+    collate_fn=tiny_story_collate,
+    pin_memory = True 
     )
 
 val_dl = get_data_loader(
@@ -65,24 +67,20 @@ val_dl = get_data_loader(
     shuffle=config["shuffle"],
     drop_last=config["drop_last"],
     num_workers=config["num_workers"],
-    collate_fn=tiny_story_collate
+    collate_fn=tiny_story_collate,
+    pin_memory = True 
 )
 
 
 model = GPT2Model(config)
 
-import os
+# if torch.cuda.device_count() > 1 : 
+#     print(f'Using {torch.cuda.device_count()} GPUs')
+#     model = torch.nn.DataParallel(model)
 
-# Check if a best model checkpoint exists and load it
-# best_model_path = "best_model_train_loss.pth"
-# if os.path.exists(best_model_path):
-#     model.load_state_dict(torch.load(best_model_path,weights_only=True, map_location=config.get("device", "cpu")))
-#     logging.info(f"Loaded best model from {best_model_path}")
-# else:
-#     logging.info("No best model checkpoint found. Training from scratch.")
-
-
+mdoel = model.to(config['device'])
 model = torch.compile(model)
+
 
 num_parameters = sum(p.numel() for p in model.parameters())
 logging.info(f"Number of parameters: {num_parameters:,}")
@@ -108,9 +106,9 @@ trainer = Trainer(
 if __name__ == "__main__":
     wandb.init(
         project="Foundation_models",
-        name="Global Gradient Clipping",
+        name="2 % Running on a single GPU B:96",
         config=config
     )
     trainer.train()
     wandb.finish()
-    torch.save(model.state_dict(), 'final_model.pth')
+    # torch.save(model.state_dict(), 'final_model.pth')
