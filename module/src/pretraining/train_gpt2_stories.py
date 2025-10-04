@@ -37,7 +37,7 @@ with open("generate_text_config.yaml","r") as f:
 
 
 train_dataset = TinyStoryData(
-    dataset= load_dataset("roneneldan/TinyStories", split="train[:2%]"),
+    dataset= load_dataset("roneneldan/TinyStories", split="train[:3%]"),
     tokenizer=tiktoken.get_encoding("gpt2"),
     cache_file = "processed_data_train.pt",
     max_length= config["context_window"],
@@ -45,7 +45,7 @@ train_dataset = TinyStoryData(
 )
 
 val_dataset = TinyStoryData(
-    dataset= load_dataset("roneneldan/TinyStories", split="train[98%:]"),
+    dataset= load_dataset("roneneldan/TinyStories", split="train[97%:]"),
     tokenizer=tiktoken.get_encoding("gpt2"),
     cache_file = "processed_data_valid.pt",
     max_length= config["context_window"]
@@ -74,11 +74,11 @@ val_dl = get_data_loader(
 
 model = GPT2Model(config)
 
-# if torch.cuda.device_count() > 1 : 
-#     print(f'Using {torch.cuda.device_count()} GPUs')
-#     model = torch.nn.DataParallel(model)
+if torch.cuda.device_count() > 1 : 
+    print(f'Using {torch.cuda.device_count()} GPUs')
+    model = torch.nn.DataParallel(model)
 
-mdoel = model.to(config['device'])
+model = model.to(config['device'])
 model = torch.compile(model)
 
 
@@ -86,8 +86,6 @@ num_parameters = sum(p.numel() for p in model.parameters())
 logging.info(f"Number of parameters: {num_parameters:,}")
 
 optimizer = torch.optim.AdamW(model.parameters(),lr=config["learning_rate"],betas = (0.9,0.95),eps=1e-8)
-
-
 
 
 
@@ -106,7 +104,7 @@ trainer = Trainer(
 if __name__ == "__main__":
     wandb.init(
         project="Foundation_models",
-        name="2 % Running on a single GPU B:96",
+        name="3 % Running on 4 GPUs B:96",
         config=config
     )
     trainer.train()

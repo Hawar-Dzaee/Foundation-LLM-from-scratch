@@ -2,12 +2,23 @@ import time
 import logging
 import wandb
 import torch
+import torch.distributed as dist
 from tqdm import tqdm
 from common.inference import TextGeneration
 
 
 logger = logging.getLogger(__name__)
 
+def is_main_process():
+    """
+    Return True when this process is the main one (rank 0) OR
+    when torch.distributed is not initialized (single-process).
+    """
+    if not dist.is_available():
+        return True
+    if not dist.is_initialized():
+        return True
+    return dist.get_rank() == 0
 
 
 class Trainer:
@@ -93,20 +104,23 @@ class Trainer:
             self.global_step += 1 
 
             end_time = time.time()  
-            print(f"Batch durantion : {(end_time-start_time)*1000 :.3f} ms")
+
+            if is_main_process():
+                print(f"Batch durantion : {(end_time-start_time)*1000 :.3f} ms")
 
             # Step level- logging 
             if (batch_idx + 1) % self.log_ever_n_batches == 0:
-                logging.info(
+                if is_main_process():
+                    logging.info(
                     f"Batch {batch_idx+1:04d}/{num_train_batches} | "
                     f"Train Batch loss: {loss:.4f} | Train Batch acc: {acc:.4f}"
                     )
-                wandb.log({
-                    "train/loss_step": round(loss,4),
-                    "train/acc_step": round(acc,4),
-                    "train/seen tokens": self.seen_tokens,
-                    "global_step": self.global_step
-                })
+                    wandb.log({
+                        "train/loss_step": round(loss,4),
+                        "train/acc_step": round(acc,4),
+                        "train/seen tokens": self.seen_tokens,
+                        "global_step": self.global_step
+                    })
 
                 if loss < best_train_loss:
                     best_train_loss = loss
@@ -150,13 +164,14 @@ class Trainer:
     
     def _log_metrics_epoch(self,train_loss,val_loss,train_acc,val_acc,seen_tokens):
         """Log aggregated metrics at the end of each epoch."""
-        wandb.log({
-            "train/loss_epoch": round(train_loss,4),
-            "train/acc_epoch": round(train_acc,4),
-            "val/loss_epoch": round(val_loss,4),
-            "val/acc_epoch": round(val_acc,4),
-            "global_step": self.global_step
-        })
+        if is_main_process():
+            wandb.log({
+                "train/loss_epoch": round(train_loss,4),
+                "train/acc_epoch": round(train_acc,4),
+                "val/loss_epoch": round(val_loss,4),
+                "val/acc_epoch": round(val_acc,4),
+                "global_step": self.global_step
+            })
 
 
 
@@ -166,9 +181,17 @@ class Trainer:
         epoch_pbar = tqdm(range(self.config["epochs"]), desc="Training Epochs", unit="epoch")
         
         for epoch in epoch_pbar:
-            torch.cuda.synchronize()
+            # sync only if CUDA is available and we actually used CUDA
+            if torch.cuda.is_available():
+                try:
+                    torch.cuda.synchronize()
+                except Exception:
+                    pass
+
+
             epoch_start_time = time.time()
-            logging.info(f"Epoch {epoch+1}/{self.config['epochs']} - Training ...")
+            if is_main_process():
+                logging.info(f"Epoch {epoch+1}/{self.config['epochs']} - Training ...")
 
             train_loss,train_acc = self._run_epoch_train()
             val_loss,val_acc = self._run_epoch_val()
@@ -182,34 +205,41 @@ class Trainer:
             self._log_metrics_epoch(train_loss,val_loss,train_acc,val_acc,self.seen_tokens)
             
             # Update progress bar with current metrics
-            epoch_pbar.set_postfix({
+            if is_main_process():
+                epoch_pbar.set_postfix({
                 "train_loss": f"{train_loss:.4f}",
                 "val_loss": f"{val_loss:.4f}",
                 "train_acc": f"{train_acc:.4f}",
                 "val_acc": f"{val_acc:.4f}"
             })
 
-            torch.cuda.synchronize()
+            if torch.cuda.is_available():
+                try:
+                    torch.cuda.synchronize()
+                except Exception:
+                    pass
+
             epoch_duration = time.time() - epoch_start_time
             formatted_epoch_time = time.strftime("%H:%M:%S", time.gmtime(epoch_duration))
 
             
-            logging.info(
+            if is_main_process():
+                logging.info(
                 f"Epoch {epoch+1}/{self.config['epochs']} | "
                 f"Train loss: {train_loss:.4f} | Train acc: {train_acc:.4f} | "
                 f"Val loss: {val_loss:.4f}  | Val acc: {val_acc:.4f} | "
                 f"Epoch time: {formatted_epoch_time} ({epoch_duration:.2f} sec)"
                 )
 
-            wandb.log({
-                "epoch_time_seconds": epoch_duration,
-                "epoch": epoch + 1,
-                "train_loss": train_loss,
-                "val_loss": val_loss,
-                "train_acc": train_acc,
-                "val_acc": val_acc,
-                "global_step": self.global_step,
-            })
+                wandb.log({
+                    "epoch_time_seconds": epoch_duration,
+                    "epoch": epoch + 1,
+                    "train_loss": train_loss,
+                    "val_loss": val_loss,
+                    "train_acc": train_acc,
+                    "val_acc": val_acc,
+                    "global_step": self.global_step,
+                })
 
             # Sample Text Generation
             if self.generate_text_config["input_text"] :
@@ -233,12 +263,15 @@ class Trainer:
                     "global_step": self.global_step,
                 })
 
-            logging.info("="*100)
+            if is_main_process():
+                logging.info("="*100)
 
         duration = time.time() - start_time
         formatted_total_time = time.strftime("%H:%M:%S", time.gmtime(duration))
-        logging.info(f"Total Training Duration : {formatted_total_time} ({duration:.2f} sec)")
-        wandb.log({"total_training_time_seconds": duration})
+
+        if is_main_process():
+            logging.info(f"Total Training Duration : {formatted_total_time} ({duration:.2f} sec)")
+            wandb.log({"total_training_time_seconds": duration})
 
         return self.history
 
