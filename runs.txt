@@ -1,11 +1,16 @@
 1- Pretraining
 
+# Single / Train 
 python -m pretraining.train_gpt2_stories
 WANDB_MODE=disabled python -m pretraining.train_gpt2_stories # running without wandb
 
+# Single / Eval 
 python -m pretraining.evaluate_gpt2_stories
 
 
+# Multi GPUs/ Train 
+torchrun --nproc_per_node=4 -m pretraining.train_gpt2_stories      
+======================================================================
 2- SFT 
 
 python -m SFT.train_SFT
