@@ -64,7 +64,7 @@ class Trainer:
         loss.backward()
 
         norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(),1.0)
-        print(f'Norm : {norm:.4f}')
+        # print(f'Norm : {norm:.4f}')
 
         self.optimizer.step()
         return loss.item(),acc.item()
@@ -94,7 +94,7 @@ class Trainer:
             self.global_step += 1 
 
             end_time = time.time()  
-            print(f"Batch durantion : {(end_time-start_time)*1000 :.3f} ms")
+            # print(f"Batch durantion : {(end_time-start_time)*1000 :.3f} ms")
 
             # Step level- logging 
             if (batch_idx + 1) % self.log_ever_n_batches == 0:

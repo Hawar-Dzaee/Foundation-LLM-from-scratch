@@ -1,16 +1,13 @@
 import yaml
-import tiktoken
 import torch
 import wandb
 import logging
-
-from datasets import load_dataset
+import argparse 
 
 torch.set_float32_matmul_precision("high")  # Must come before importing any local modules [says GPT ]
 
 
-from processing_data.dataset import TinyStoryData
-from processing_data.dataloader import get_data_loader,tiny_story_collate
+from processing_data.data_manager import fetch_train_val_dl
 from model_components.gpt2 import GPT2Model
 from common.metrics import cross_entropy,accuracy
 from common.trainer import Trainer
@@ -26,6 +23,12 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--run_name",type=str,required=True,help="Name of Wandb run")
+    return parser.parse_args()
+
 with open("config.yaml","r") as f:
     config = yaml.safe_load(f)
 
@@ -34,41 +37,7 @@ with open("generate_text_config.yaml","r") as f:
 
 
 
-
-train_dataset = TinyStoryData(
-    dataset= load_dataset("roneneldan/TinyStories", split="train[:1%]"),
-    tokenizer=tiktoken.get_encoding("gpt2"),
-    cache_file = "processed_data_train.pt",
-    max_length= config["context_window"],
-
-)
-
-val_dataset = TinyStoryData(
-    dataset= load_dataset("roneneldan/TinyStories", split="train[99%:]"),
-    tokenizer=tiktoken.get_encoding("gpt2"),
-    cache_file = "processed_data_valid.pt",
-    max_length= config["context_window"]
-)
-
-train_dl = get_data_loader(
-    train_dataset,
-    batch_size=config["batch_size"],
-    shuffle=config["shuffle"],
-    drop_last=config["drop_last"],
-    num_workers=config["num_workers"],
-    collate_fn=tiny_story_collate
-    )
-
-val_dl = get_data_loader(
-    val_dataset,
-    batch_size=config["batch_size"],
-    shuffle=config["shuffle"],
-    drop_last=config["drop_last"],
-    num_workers=config["num_workers"],
-    collate_fn=tiny_story_collate
-)
-
-
+train_dl, val_dl = fetch_train_val_dl()
 model = GPT2Model(config)
 
 import os
@@ -91,8 +60,6 @@ optimizer = torch.optim.AdamW(model.parameters(),lr=config["learning_rate"],beta
 
 
 
-
-
 trainer = Trainer(
     model,
     train_dl,
@@ -106,9 +73,11 @@ trainer = Trainer(
 )
 
 if __name__ == "__main__":
+    args = parse_args()
+
     wandb.init(
         project="Foundation_models",
-        name="Global Gradient Clipping",
+        name=args.run_name,
         config=config
     )
     trainer.train()
