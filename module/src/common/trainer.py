@@ -20,6 +20,7 @@ class Trainer:
         accuracy_fn,
         optimizer,
         config,
+        rank,
         generate_text_config,
         overfit_single_batch=False
     ):
@@ -31,7 +32,8 @@ class Trainer:
         self.accuracy_fn = accuracy_fn
         self.optimizer = optimizer
         self.config = config
-        self.device = config['device']
+        # self.device = config['device']
+        self.rank = rank
         self.generate_text_config = generate_text_config
         self.overfit_single_batch = overfit_single_batch
 
@@ -50,13 +52,13 @@ class Trainer:
     def _run_batch_train(self, batch):
         self.model.train()
         self.optimizer.zero_grad()
-        self.model = self.model.to(self.device)
+        self.model = self.model.to(self.rank)
         inputs, targets = batch
-        inputs, targets = inputs.to(self.device), targets.to(self.device)
+        inputs, targets = inputs.to(self.rank), targets.to(self.rank)
 
-        with torch.autocast(device_type = self.device,dtype = torch.bfloat16):
-            logits = self.model(inputs)
-            loss = self.loss_fn(logits, targets)
+        # with torch.autocast(device_type = self.device,dtype = torch.bfloat16):
+        logits = self.model(inputs)
+        loss = self.loss_fn(logits, targets)
             # import code; code.interact(local=locals())
             
         acc = self.accuracy_fn(logits,targets) 
@@ -73,7 +75,7 @@ class Trainer:
         self.model.eval()
         with torch.no_grad():
             inputs, targets = batch
-            inputs, targets = inputs.to(self.device), targets.to(self.device)
+            inputs, targets = inputs.to(self.rank), targets.to(self.rank)
             logits = self.model(inputs)
             loss = self.loss_fn(logits, targets)
             acc = self.accuracy_fn(logits,targets) 
@@ -213,28 +215,28 @@ class Trainer:
             })
 
             # Sample Text Generation
-            if self.generate_text_config["input_text"] :
-                text_generation = TextGeneration(
-                    model = self.model,
-                    top_k= self.generate_text_config["top_k"],
-                    temperature= self.generate_text_config["temperature"],
-                    look_back= self.generate_text_config["look_back"],
-                    num_tokens_to_generate= self.generate_text_config["num_tokens_to_generate"],
-                    device= self.generate_text_config['device'],
-                    )
-                input_text,output_text = text_generation.chat(
-                    input_text= self.generate_text_config["input_text"],
-                )
+            # if self.generate_text_config["input_text"] :
+            #     text_generation = TextGeneration(
+            #         model = self.model,
+            #         top_k= self.generate_text_config["top_k"],
+            #         temperature= self.generate_text_config["temperature"],
+            #         look_back= self.generate_text_config["look_back"],
+            #         num_tokens_to_generate= self.generate_text_config["num_tokens_to_generate"],
+            #         device= self.generate_text_config['device'],
+            #         )
+            #     input_text,output_text = text_generation.chat(
+            #         input_text= self.generate_text_config["input_text"],
+            #     )
                 
 
-                logging.info(f"Input Text: {input_text}\nOutput Text: {output_text}")
-                wandb.log({
-                    "samples/input_text": input_text,
-                    "samples/output_text": output_text,
-                    "global_step": self.global_step,
-                })
+            #     logging.info(f"Input Text: {input_text}\nOutput Text: {output_text}")
+            #     wandb.log({
+            #         "samples/input_text": input_text,
+            #         "samples/output_text": output_text,
+            #         "global_step": self.global_step,
+            #     })
 
-            logging.info("="*100)
+            # logging.info("="*100)
 
         duration = time.time() - start_time
         formatted_total_time = time.strftime("%H:%M:%S", time.gmtime(duration))

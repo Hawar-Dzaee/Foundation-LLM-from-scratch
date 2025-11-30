@@ -1,7 +1,7 @@
 import yaml 
 import tiktoken
 from datasets import load_dataset
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader,DistributedSampler
 
 from .dataset import TinyStoryData
 from .dataloader import tiny_story_collate
@@ -26,13 +26,17 @@ def fetch_train_val_dl():
         max_length= config["context_window"]
     )
 
+    print(f'Train Dataset sample size : {len(train_dataset)}')
+    print(f'Val Dataset sample size : {len(val_dataset)}')
+
     train_dl = DataLoader(
         train_dataset,
         batch_size=config["batch_size"],
         shuffle=config["shuffle"],
         drop_last=config["drop_last"],
         num_workers=config["num_workers"],
-        collate_fn=tiny_story_collate
+        collate_fn=tiny_story_collate,
+        sampler = DistributedSampler(train_dataset,shuffle=False)
         )
 
     val_dl = DataLoader(
@@ -41,7 +45,8 @@ def fetch_train_val_dl():
         shuffle=config["shuffle"],
         drop_last=config["drop_last"],
         num_workers=config["num_workers"],
-        collate_fn=tiny_story_collate
+        collate_fn=tiny_story_collate,
+        sampler = DistributedSampler(val_dataset,shuffle=False)
     )
 
     return train_dl,val_dl
