@@ -1,3 +1,4 @@
+import os 
 import yaml
 import torch
 import wandb
@@ -29,57 +30,66 @@ def parse_args():
     parser.add_argument("--run_name",type=str,required=True,help="Name of Wandb run")
     return parser.parse_args()
 
-with open("config.yaml","r") as f:
-    config = yaml.safe_load(f)
 
-with open("generate_text_config.yaml","r") as f:
-    generate_text_config = yaml.safe_load(f)
-
-
-
-train_dl, val_dl = fetch_train_val_dl()
-model = GPT2Model(config)
-
-import os
-
-# Check if a best model checkpoint exists and load it
-# best_model_path = "best_model_train_loss.pth"
-# if os.path.exists(best_model_path):
-#     model.load_state_dict(torch.load(best_model_path,weights_only=True, map_location=config.get("device", "cpu")))
-#     logging.info(f"Loaded best model from {best_model_path}")
-# else:
-#     logging.info("No best model checkpoint found. Training from scratch.")
-
-
-model = torch.compile(model)
-
-num_parameters = sum(p.numel() for p in model.parameters())
-logging.info(f"Number of parameters: {num_parameters:,}")
-
-optimizer = torch.optim.AdamW(model.parameters(),lr=config["learning_rate"],betas = (0.9,0.95),eps=1e-8)
-
-
-
-trainer = Trainer(
-    model,
-    train_dl,
-    val_dl,
-    loss_fn=cross_entropy,
-    accuracy_fn=accuracy,
-    optimizer=optimizer,
-    config=config,
-    generate_text_config=generate_text_config,
-    overfit_single_batch= False
-)
-
-if __name__ == "__main__":
+def main() : 
     args = parse_args()
+
+
+
+    with open("config.yaml","r") as f:
+        config = yaml.safe_load(f)
+
+    with open("generate_text_config.yaml","r") as f:
+        generate_text_config = yaml.safe_load(f)
 
     wandb.init(
         project="Foundation_models",
         name=args.run_name,
         config=config
     )
+
+
+
+    train_dl, val_dl = fetch_train_val_dl()
+    model = GPT2Model(config)
+
+
+    # Check if a best model checkpoint exists and load it
+    # best_model_path = "best_model_train_loss.pth"
+    # if os.path.exists(best_model_path):
+    #     model.load_state_dict(torch.load(best_model_path,weights_only=True, map_location=config.get("device", "cpu")))
+    #     logging.info(f"Loaded best model from {best_model_path}")
+    # else:
+    #     logging.info("No best model checkpoint found. Training from scratch.")
+
+
+    # model = torch.compile(model)
+
+    num_parameters = sum(p.numel() for p in model.parameters())
+    logging.info(f"Number of parameters: {num_parameters:,}")
+
+    optimizer = torch.optim.AdamW(model.parameters(),lr=config["learning_rate"],betas = (0.9,0.95),eps=1e-8)
+
+
+    trainer = Trainer(
+        model,
+        train_dl,
+        val_dl,
+        loss_fn=cross_entropy,
+        accuracy_fn=accuracy,
+        optimizer=optimizer,
+        config=config,
+        generate_text_config=generate_text_config,
+        overfit_single_batch= False
+    )
+
     trainer.train()
     wandb.finish()
     torch.save(model.state_dict(), 'final_model.pth')
+
+if __name__ == "__main__":
+    main()
+
+
+    
+    
