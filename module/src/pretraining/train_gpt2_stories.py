@@ -10,11 +10,11 @@ from torch.distributed import destroy_process_group
 torch.set_float32_matmul_precision("high")  # Must come before importing any local modules [says GPT ]
 
 
-from processing_data.data_manager import fetch_train_val_dl
 from model_components.gpt2 import GPT2Model
 from common.metrics import cross_entropy,accuracy
 from common.trainer import Trainer
 from distributed import ddp_setup
+from processing_data.data_manager import fetch_train_val_dl
 
 
 # torch.set_float32_matmul_precision("high")  # position 2 : No difference with Postion 1 (P2 was 2 seconds faster than P1 :negligble)
@@ -56,6 +56,8 @@ def main(rank,world_size) :
     train_dl, val_dl = fetch_train_val_dl()
     model = GPT2Model(config).to(rank)
     model = DDP(model,device_ids = [rank])
+    model = torch.compile(model)
+
 
 
     # Check if a best model checkpoint exists and load it
@@ -67,7 +69,6 @@ def main(rank,world_size) :
     #     logging.info("No best model checkpoint found. Training from scratch.")
 
 
-    # model = torch.compile(model)
 
     if rank == 0 :
         num_parameters = sum(p.numel() for p in model.parameters())

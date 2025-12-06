@@ -52,7 +52,6 @@ class Trainer:
     def _run_batch_train(self, batch):
         self.model.train()
         self.optimizer.zero_grad()
-        self.model = self.model.to(self.rank)
         inputs, targets = batch
         inputs, targets = inputs.to(self.rank), targets.to(self.rank)
 
@@ -104,12 +103,14 @@ class Trainer:
                     f"Batch {batch_idx+1:04d}/{num_train_batches} | "
                     f"Train Batch loss: {loss:.4f} | Train Batch acc: {acc:.4f}"
                     )
-                wandb.log({
-                    "train/loss_step": round(loss,4),
-                    "train/acc_step": round(acc,4),
-                    "train/seen tokens": self.seen_tokens,
-                    "global_step": self.global_step
-                })
+
+                if self.rank == 0 : 
+                    wandb.log({
+                        "train/loss_step": round(loss,4),
+                        "train/acc_step": round(acc,4),
+                        "train/seen tokens": self.seen_tokens,
+                        "global_step": self.global_step
+                    })
 
                 if loss < best_train_loss:
                     best_train_loss = loss
@@ -137,10 +138,11 @@ class Trainer:
             val_loss += loss
             val_acc += acc
 
-            if loss < best_val_loss:
-                best_val_loss = loss
-                torch.save(self.model.state_dict(), f'best_model_val_loss.pth')
-                logging.info(f"New best model saved! Val loss: {loss:.4f}")
+            if self.rank == 0 : 
+                if loss < best_val_loss:
+                    best_val_loss = loss
+                    torch.save(self.model.state_dict(), f'best_model_val_loss.pth')
+                    logging.info(f"New best model saved! Val loss: {loss:.4f}")
 
             if self.overfit_single_batch:
                 break
@@ -153,13 +155,14 @@ class Trainer:
     
     def _log_metrics_epoch(self,train_loss,val_loss,train_acc,val_acc,seen_tokens):
         """Log aggregated metrics at the end of each epoch."""
-        wandb.log({
-            "train/loss_epoch": round(train_loss,4),
-            "train/acc_epoch": round(train_acc,4),
-            "val/loss_epoch": round(val_loss,4),
-            "val/acc_epoch": round(val_acc,4),
-            "global_step": self.global_step
-        })
+        if self.rank == 0 : 
+            wandb.log({
+                "train/loss_epoch": round(train_loss,4),
+                "train/acc_epoch": round(train_acc,4),
+                "val/loss_epoch": round(val_loss,4),
+                "val/acc_epoch": round(val_acc,4),
+                "global_step": self.global_step
+            })
 
 
 
@@ -204,15 +207,16 @@ class Trainer:
                 f"Epoch time: {formatted_epoch_time} ({epoch_duration:.2f} sec)"
                 )
 
-            wandb.log({
-                "epoch_time_seconds": epoch_duration,
-                "epoch": epoch + 1,
-                "train_loss": train_loss,
-                "val_loss": val_loss,
-                "train_acc": train_acc,
-                "val_acc": val_acc,
-                "global_step": self.global_step,
-            })
+            if self.rank == 0 : 
+                wandb.log({
+                    "epoch_time_seconds": epoch_duration,
+                    "epoch": epoch + 1,
+                    "train_loss": train_loss,
+                    "val_loss": val_loss,
+                    "train_acc": train_acc,
+                    "val_acc": val_acc,
+                    "global_step": self.global_step,
+                })
 
             # Sample Text Generation
             # if self.generate_text_config["input_text"] :
@@ -241,7 +245,9 @@ class Trainer:
         duration = time.time() - start_time
         formatted_total_time = time.strftime("%H:%M:%S", time.gmtime(duration))
         logging.info(f"Total Training Duration : {formatted_total_time} ({duration:.2f} sec)")
-        wandb.log({"total_training_time_seconds": duration})
+
+        if self.rank == 0 : 
+            wandb.log({"total_training_time_seconds": duration})
 
         return self.history
 
