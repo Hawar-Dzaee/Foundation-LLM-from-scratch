@@ -56,7 +56,7 @@ def main(rank,world_size) :
     train_dl, val_dl = fetch_train_val_dl()
     model = GPT2Model(config).to(rank)
     model = DDP(model,device_ids = [rank])
-    model = torch.compile(model)
+    # model = torch.compile(model)      # maybe it will be fruitfull for longer runs 
 
 
 
