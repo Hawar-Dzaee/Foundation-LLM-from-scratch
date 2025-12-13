@@ -1,19 +1,20 @@
+import os 
 import yaml
-import tiktoken
 import torch
 import wandb
 import logging
-
-from datasets import load_dataset
+import argparse 
+from torch.nn.parallel import DistributedDataParallel as DDP 
+from torch.distributed import destroy_process_group 
 
 torch.set_float32_matmul_precision("high")  # Must come before importing any local modules [says GPT ]
 
 
-from processing_data.dataset import TinyStoryData
-from processing_data.dataloader import get_data_loader,tiny_story_collate
 from model_components.gpt2 import GPT2Model
 from common.metrics import cross_entropy,accuracy
 from common.trainer import Trainer
+from distributed import ddp_setup
+from processing_data.data_manager import fetch_train_val_dl
 
 
 # torch.set_float32_matmul_precision("high")  # position 2 : No difference with Postion 1 (P2 was 2 seconds faster than P1 :negligble)
@@ -26,91 +27,96 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-with open("config.yaml","r") as f:
-    config = yaml.safe_load(f)
 
-with open("generate_text_config.yaml","r") as f:
-    generate_text_config = yaml.safe_load(f)
-
-
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--run_name",type=str,required=True,help="Name of Wandb run")
+    return parser.parse_args()
 
 
-train_dataset = TinyStoryData(
-    dataset= load_dataset("roneneldan/TinyStories", split="train[:1%]"),
-    tokenizer=tiktoken.get_encoding("gpt2"),
-    cache_file = "processed_data_train.pt",
-    max_length= config["context_window"],
+def main(rank,world_size) : 
+    args = parse_args()
+    ddp_setup(rank,world_size)  #GPU 
 
-)
+    with open("config.yaml","r") as f:
+        config = yaml.safe_load(f)
 
-val_dataset = TinyStoryData(
-    dataset= load_dataset("roneneldan/TinyStories", split="train[99%:]"),
-    tokenizer=tiktoken.get_encoding("gpt2"),
-    cache_file = "processed_data_valid.pt",
-    max_length= config["context_window"]
-)
+    with open("generate_text_config.yaml","r") as f:
+        generate_text_config = yaml.safe_load(f)
 
-train_dl = get_data_loader(
-    train_dataset,
-    batch_size=config["batch_size"],
-    shuffle=config["shuffle"],
-    drop_last=config["drop_last"],
-    num_workers=config["num_workers"],
-    collate_fn=tiny_story_collate
+    if rank == 0 : 
+        wandb.init(
+            project="Foundation_models",
+            name=args.run_name,
+            config=config
+        )
+
+
+
+    train_dl, val_dl = fetch_train_val_dl()
+    model = GPT2Model(config).to(rank)
+    model = DDP(model,device_ids = [rank])
+    # model = torch.compile(model)      # maybe it will be fruitfull for longer runs 
+
+
+
+    # Check if a best model checkpoint exists and load it
+    # best_model_path = "best_model_train_loss.pth"
+    # if os.path.exists(best_model_path):
+    #     model.load_state_dict(torch.load(best_model_path,weights_only=True, map_location=config.get("device", "cpu")))
+    #     logging.info(f"Loaded best model from {best_model_path}")
+    # else:
+    #     logging.info("No best model checkpoint found. Training from scratch.")
+
+
+
+    if rank == 0 :
+        num_parameters = sum(p.numel() for p in model.parameters())
+        logging.info(f"Number of parameters: {num_parameters:,}")
+
+    optimizer = torch.optim.AdamW(model.parameters(),lr=config["learning_rate"],betas = (0.9,0.95),eps=1e-8)
+
+
+    trainer = Trainer(
+        model,
+        train_dl,
+        val_dl,
+        loss_fn=cross_entropy,
+        accuracy_fn=accuracy,
+        optimizer=optimizer,
+        config=config,
+        rank = rank, 
+        generate_text_config=generate_text_config,
+        overfit_single_batch= False
     )
 
-val_dl = get_data_loader(
-    val_dataset,
-    batch_size=config["batch_size"],
-    shuffle=config["shuffle"],
-    drop_last=config["drop_last"],
-    num_workers=config["num_workers"],
-    collate_fn=tiny_story_collate
-)
+    trainer.train()
 
+    if rank == 0 : 
+        wandb.finish()
+        torch.save(model.state_dict(), 'final_model.pth')
 
-model = GPT2Model(config)
+    destroy_process_group()
+    
 
-import os
-
-# Check if a best model checkpoint exists and load it
-# best_model_path = "best_model_train_loss.pth"
-# if os.path.exists(best_model_path):
-#     model.load_state_dict(torch.load(best_model_path,weights_only=True, map_location=config.get("device", "cpu")))
-#     logging.info(f"Loaded best model from {best_model_path}")
-# else:
-#     logging.info("No best model checkpoint found. Training from scratch.")
-
-
-model = torch.compile(model)
-
-num_parameters = sum(p.numel() for p in model.parameters())
-logging.info(f"Number of parameters: {num_parameters:,}")
-
-optimizer = torch.optim.AdamW(model.parameters(),lr=config["learning_rate"],betas = (0.9,0.95),eps=1e-8)
-
-
-
-
-
-trainer = Trainer(
-    model,
-    train_dl,
-    val_dl,
-    loss_fn=cross_entropy,
-    accuracy_fn=accuracy,
-    optimizer=optimizer,
-    config=config,
-    generate_text_config=generate_text_config,
-    overfit_single_batch= False
-)
 
 if __name__ == "__main__":
-    wandb.init(
-        project="Foundation_models",
-        name="Global Gradient Clipping",
-        config=config
-    )
-    trainer.train()
-    wandb.finish()
-    torch.save(model.state_dict(), 'final_model.pth')
+    if 'WORLD_SIZE' in os.environ : 
+        world_size = int(os.environ["WORLD_SIZE"])
+    else : 
+        world_size = 1 
+
+    if "LOCAL_RANK" in os.environ : 
+        rank = int(os.environ['LOCAL_RANK'])
+    elif 'RANK' in os.environ : 
+        rank = int(os.environ['RANK'])
+    else : 
+        rank = 0 
+
+
+
+    main(rank,world_size)
+
+
+    
+    

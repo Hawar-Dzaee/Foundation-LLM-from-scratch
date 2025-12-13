@@ -1,16 +1,45 @@
-1- Pretraining
+1a- Pretraining train/val
 
+# Single / Train 
 python -m pretraining.train_gpt2_stories
 WANDB_MODE=disabled python -m pretraining.train_gpt2_stories # running without wandb
 
+
+# Multi GPUs/ Train 
+torchrun --nproc_per_node=4 -m pretraining.train_gpt2_stories      
+
+
+# For multi GPUs (RunPod)
+NCCL_P2P_DISABLE=1 NCCL_IB_DISABLE=1 \
+python -m torch.distributed.run --nproc_per_node=2  pretraining/train_gpt2_stories.py 
+
+# The one that worked 
+(Foundation-LLM-from-scratch) root@d03860b1c8b6:/workspace/Foundation-LLM-from-scratch/module/src# # the path to run at 
+PYTHONPATH=./src:$PYTHONPATH NCCL_P2P_DISABLE=1 NCCL_IB_DISABLE=1 python -m torch.distributed.run --nproc_per_node=2 pretraining/train_gpt2_stories.py 
+--run_name "running on Multi GPUs"      # I added wandb argument 
+
+1b - Pretraining test 
+
+# Single 
 python -m pretraining.evaluate_gpt2_stories
 
 
+======================================================================
 2- SFT 
 
 python -m SFT.train_SFT
 python -m SFT.evaluate_SFT
+======================================================================
 
 3- chainlit 
 
 chainlit run app.py 
+
+
+
+$$$$$$$$$$$$$$$$$$$$$$$$$$
+
+
+
+
+

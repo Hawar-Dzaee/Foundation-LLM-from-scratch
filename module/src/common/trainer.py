@@ -20,6 +20,7 @@ class Trainer:
         accuracy_fn,
         optimizer,
         config,
+        rank,
         generate_text_config,
         overfit_single_batch=False
     ):
@@ -31,7 +32,8 @@ class Trainer:
         self.accuracy_fn = accuracy_fn
         self.optimizer = optimizer
         self.config = config
-        self.device = config['device']
+        # self.device = config['device']
+        self.rank = rank
         self.generate_text_config = generate_text_config
         self.overfit_single_batch = overfit_single_batch
 
@@ -50,13 +52,12 @@ class Trainer:
     def _run_batch_train(self, batch):
         self.model.train()
         self.optimizer.zero_grad()
-        self.model = self.model.to(self.device)
         inputs, targets = batch
-        inputs, targets = inputs.to(self.device), targets.to(self.device)
+        inputs, targets = inputs.to(self.rank), targets.to(self.rank)
 
-        with torch.autocast(device_type = self.device,dtype = torch.bfloat16):
-            logits = self.model(inputs)
-            loss = self.loss_fn(logits, targets)
+        # with torch.autocast(device_type = self.device,dtype = torch.bfloat16):
+        logits = self.model(inputs)
+        loss = self.loss_fn(logits, targets)
             # import code; code.interact(local=locals())
             
         acc = self.accuracy_fn(logits,targets) 
@@ -64,7 +65,7 @@ class Trainer:
         loss.backward()
 
         norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(),1.0)
-        print(f'Norm : {norm:.4f}')
+        # print(f'Norm : {norm:.4f}')
 
         self.optimizer.step()
         return loss.item(),acc.item()
@@ -73,7 +74,7 @@ class Trainer:
         self.model.eval()
         with torch.no_grad():
             inputs, targets = batch
-            inputs, targets = inputs.to(self.device), targets.to(self.device)
+            inputs, targets = inputs.to(self.rank), targets.to(self.rank)
             logits = self.model(inputs)
             loss = self.loss_fn(logits, targets)
             acc = self.accuracy_fn(logits,targets) 
@@ -94,7 +95,7 @@ class Trainer:
             self.global_step += 1 
 
             end_time = time.time()  
-            print(f"Batch durantion : {(end_time-start_time)*1000 :.3f} ms")
+            # print(f"Batch durantion : {(end_time-start_time)*1000 :.3f} ms")
 
             # Step level- logging 
             if (batch_idx + 1) % self.log_ever_n_batches == 0:
@@ -102,12 +103,14 @@ class Trainer:
                     f"Batch {batch_idx+1:04d}/{num_train_batches} | "
                     f"Train Batch loss: {loss:.4f} | Train Batch acc: {acc:.4f}"
                     )
-                wandb.log({
-                    "train/loss_step": round(loss,4),
-                    "train/acc_step": round(acc,4),
-                    "train/seen tokens": self.seen_tokens,
-                    "global_step": self.global_step
-                })
+
+                if self.rank == 0 : 
+                    wandb.log({
+                        "train/loss_step": round(loss,4),
+                        "train/acc_step": round(acc,4),
+                        "train/seen tokens": self.seen_tokens,
+                        "global_step": self.global_step
+                    })
 
                 if loss < best_train_loss:
                     best_train_loss = loss
@@ -135,10 +138,11 @@ class Trainer:
             val_loss += loss
             val_acc += acc
 
-            if loss < best_val_loss:
-                best_val_loss = loss
-                torch.save(self.model.state_dict(), f'best_model_val_loss.pth')
-                logging.info(f"New best model saved! Val loss: {loss:.4f}")
+            if self.rank == 0 : 
+                if loss < best_val_loss:
+                    best_val_loss = loss
+                    torch.save(self.model.state_dict(), f'best_model_val_loss.pth')
+                    logging.info(f"New best model saved! Val loss: {loss:.4f}")
 
             if self.overfit_single_batch:
                 break
@@ -151,13 +155,14 @@ class Trainer:
     
     def _log_metrics_epoch(self,train_loss,val_loss,train_acc,val_acc,seen_tokens):
         """Log aggregated metrics at the end of each epoch."""
-        wandb.log({
-            "train/loss_epoch": round(train_loss,4),
-            "train/acc_epoch": round(train_acc,4),
-            "val/loss_epoch": round(val_loss,4),
-            "val/acc_epoch": round(val_acc,4),
-            "global_step": self.global_step
-        })
+        if self.rank == 0 : 
+            wandb.log({
+                "train/loss_epoch": round(train_loss,4),
+                "train/acc_epoch": round(train_acc,4),
+                "val/loss_epoch": round(val_loss,4),
+                "val/acc_epoch": round(val_acc,4),
+                "global_step": self.global_step
+            })
 
 
 
@@ -202,44 +207,47 @@ class Trainer:
                 f"Epoch time: {formatted_epoch_time} ({epoch_duration:.2f} sec)"
                 )
 
-            wandb.log({
-                "epoch_time_seconds": epoch_duration,
-                "epoch": epoch + 1,
-                "train_loss": train_loss,
-                "val_loss": val_loss,
-                "train_acc": train_acc,
-                "val_acc": val_acc,
-                "global_step": self.global_step,
-            })
-
-            # Sample Text Generation
-            if self.generate_text_config["input_text"] :
-                text_generation = TextGeneration(
-                    model = self.model,
-                    top_k= self.generate_text_config["top_k"],
-                    temperature= self.generate_text_config["temperature"],
-                    look_back= self.generate_text_config["look_back"],
-                    num_tokens_to_generate= self.generate_text_config["num_tokens_to_generate"],
-                    device= self.generate_text_config['device'],
-                    )
-                input_text,output_text = text_generation.chat(
-                    input_text= self.generate_text_config["input_text"],
-                )
-                
-
-                logging.info(f"Input Text: {input_text}\nOutput Text: {output_text}")
+            if self.rank == 0 : 
                 wandb.log({
-                    "samples/input_text": input_text,
-                    "samples/output_text": output_text,
+                    "epoch_time_seconds": epoch_duration,
+                    "epoch": epoch + 1,
+                    "train_loss": train_loss,
+                    "val_loss": val_loss,
+                    "train_acc": train_acc,
+                    "val_acc": val_acc,
                     "global_step": self.global_step,
                 })
 
-            logging.info("="*100)
+            # Sample Text Generation
+            # if self.generate_text_config["input_text"] :
+            #     text_generation = TextGeneration(
+            #         model = self.model,
+            #         top_k= self.generate_text_config["top_k"],
+            #         temperature= self.generate_text_config["temperature"],
+            #         look_back= self.generate_text_config["look_back"],
+            #         num_tokens_to_generate= self.generate_text_config["num_tokens_to_generate"],
+            #         device= self.generate_text_config['device'],
+            #         )
+            #     input_text,output_text = text_generation.chat(
+            #         input_text= self.generate_text_config["input_text"],
+            #     )
+                
+
+            #     logging.info(f"Input Text: {input_text}\nOutput Text: {output_text}")
+            #     wandb.log({
+            #         "samples/input_text": input_text,
+            #         "samples/output_text": output_text,
+            #         "global_step": self.global_step,
+            #     })
+
+            # logging.info("="*100)
 
         duration = time.time() - start_time
         formatted_total_time = time.strftime("%H:%M:%S", time.gmtime(duration))
         logging.info(f"Total Training Duration : {formatted_total_time} ({duration:.2f} sec)")
-        wandb.log({"total_training_time_seconds": duration})
+
+        if self.rank == 0 : 
+            wandb.log({"total_training_time_seconds": duration})
 
         return self.history
 
